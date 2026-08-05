@@ -1,7 +1,4 @@
-import zipfile
-import os
-
-app_code = '''import streamlit as st
+import streamlit as st
 import math
 
 st.set_page_config(page_title="CrossFit WOD Predictor", page_icon="🏋️", layout="wide")
@@ -47,8 +44,6 @@ with col2:
     mov2_load = st.number_input("Carga do Movimento 2 (kg, 0 se peso do corpo)", min_value=0.0, value=0.0, step=2.5)
 
 def calcular_movimento(nome, reps, carga, rm_dict, max_dict, pace_burpee):
-    # Retorna (tempo_movimento, num_sets, descanso_medio_por_set)
-    
     if nome == "Thruster":
         pct = carga / rm_dict['thruster'] if rm_dict['thruster'] > 0 else 0.5
         tpr = 2.2 * (1 + (pct ** 2))
@@ -107,7 +102,7 @@ if st.button("🚀 Calcular Estimativa de Tempo", use_container_width=True, type
     t1, sets1, rest1 = calcular_movimento(mov1_name, mov1_reps, mov1_load, rms, maxs, burpee_pace)
     t2, sets2, rest2 = calcular_movimento(mov2_name, mov2_reps, mov2_load, rms, maxs, burpee_pace)
     
-    transition_per_round = 6.0 # Segundos entre transições de exercícios
+    transition_per_round = 6.0
     time_per_round = t1 + t2 + transition_per_round
     
     total_time = time_per_round * num_rounds
@@ -115,7 +110,6 @@ if st.button("🚀 Calcular Estimativa de Tempo", use_container_width=True, type
     mins = int(total_time // 60)
     secs = int(total_time % 60)
     
-    # Exibição de Resultados
     st.subheader("🎯 Resultado da Previsão")
     
     res_col1, res_col2, res_col3 = st.columns(3)
@@ -127,19 +121,3 @@ if st.button("🚀 Calcular Estimativa de Tempo", use_container_width=True, type
     st.write(f"- **{mov1_name}:** Divida as {mov1_reps} reps em cerca de **{sets1} sets** (descansando ~{int(rest1)}s entre eles).")
     st.write(f"- **{mov2_name}:** Divida as {mov2_reps} reps em cerca de **{sets2} sets** (descansando ~{int(rest2)}s entre eles).")
     st.write(f"- Mantendo transições rápidas de até 3s entre as estações, você evita perder o ritmo ideal.")
-'''
-
-requirements_code = '''streamlit>=1.20.0
-pandas>=1.5.0
-'''
-
-readme_code = '''# 🏋️ CrossFit WOD Time Predictor
-
-Um aplicativo web interativo em Streamlit projetado para prever o tempo final de execução em treinos de CrossFit (WODs) com base nas capacidades individuais do atleta (1RM e máximo de repetições ininterruptas).
-
-## 🚀 Como Rodar Localmente
-
-1. Instale o Python na sua máquina.
-2. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
