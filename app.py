@@ -11,7 +11,7 @@ st.set_page_config(
 
 # 2. Lógica de Autenticação
 def checar_senha():
-    SENHA_CORRETA = "wodpredict"  # <--- Altere para a sua senha
+    SENHA_CORRETA = "SUA_SENHA_AQUI"  # <--- Altere para a sua senha
 
     def senha_digitada():
         if st.session_state["password_input"] == SENHA_CORRETA:
@@ -42,8 +42,8 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# 4. Função utilitária para estimativa de RM (Epley & Brzycki)
-def calcular_rm(carga, reps):
+# 4. Funções utilitárias de RM
+def calcular_rm_lpo(carga, reps):
     if reps == 1:
         rm1 = carga
     else:
@@ -59,10 +59,27 @@ def calcular_rm(carga, reps):
     tabela = {f"{r}RM": round(rm1 * pct, 1) for r, pct in percentuais.items()}
     return round(rm1, 1), tabela
 
+def calcular_rm_gym_com_carga(peso_corpo, carga_extra, reps):
+    peso_total = peso_corpo + carga_extra
+    if reps == 1:
+        total_1rm = peso_total
+    else:
+        total_1rm = peso_total * (1 + reps / 30)
+    
+    carga_extra_1rm = max(0.0, total_1rm - peso_corpo)
+    
+    # Estimativa de repetições máximas com peso corporal limpo
+    if total_1rm > peso_corpo:
+        reps_bw = int((total_1rm / peso_corpo - 1) * 30)
+    else:
+        reps_bw = reps
+        
+    return round(carga_extra_1rm, 1), round(total_1rm, 1), max(reps, reps_bw)
+
 # 5. Interface Principal com Abas
 st.title("🏋️ CrossFit WOD Predictor & Performance PRO")
 
-aba_wod, aba_rm = st.tabs(["⏱️ Preditor de Tempo de WOD", "📊 Calculadora Preditora de PR / Rep Max"])
+aba_wod, aba_rm = st.tabs(["⏱️ Preditor de Tempo de WOD", "📊 Preditor de RM (LPO & Ginástica)"])
 
 # ==================== ABA 1: PREDIÇÃO DE WOD ====================
 with aba_wod:
@@ -169,7 +186,7 @@ with aba_wod:
             sets, rest = 1, 0.0
         return (reps * tpr) + ((sets - 1) * rest), sets, rest, info["pattern"]
 
-    if st.button("🚀 Calcular", use_container_width=True, type="primary"):
+    if st.button("🚀 Calcular WOD", use_container_width=True, type="primary"):
         r_d = {'thruster': rm_thruster, 'deadlift': rm_deadlift, 'bsquat': rm_bsquat, 'fsquat': rm_fsquat, 'ohs': rm_ohs, 'cj': rm_cj, 'snatch': rm_snatch, 'pclean': rm_pclean, 'ppress': rm_ppress}
         m_d = {'pullups': max_pullups, 'c2b': max_c2b, 'bmu': max_bmu, 'rmu': max_rmu, 'ttb': max_ttb, 'hspu': max_hspu, 'hsw': max_hsw, 'rope': max_rope, 'pistols': max_pistols}
         p_d = {'burpee': pace_burpee, 'run': pace_run, 'row': pace_row, 'bike': pace_bike, 'du': pace_du}
@@ -230,30 +247,82 @@ with aba_wod:
             else:
                 st.info(f"✅ {msg}")
 
-# ==================== ABA 2: PREDICTOR DE PR / REP MAX ====================
+# ==================== ABA 2: PREDICTOR DE RM (LPO & GINÁSTICA) ====================
 with aba_rm:
-    st.header("📊 Calculadora de PR & Estimativa de Rep Max")
-    st.markdown("Calcule sua **1RM estimada** e obtenha a tabela de cargas de **1RM a 10RM** a partir de qualquer série recente.")
-
-    c_calc1, c_calc2 = st.columns(2)
-    with c_calc1:
-        carga_input = st.number_input("Carga levantada (kg)", min_value=1.0, value=80.0, step=2.5, key="rm_carga_input")
-        reps_input = st.number_input("Repetições realizadas", min_value=1, max_value=30, value=5, key="rm_reps_input")
+    st.header("📊 Calculadora & Preditor de Rep Max")
     
-    rm1_est, tabela_rms = calcular_rm(carga_input, reps_input)
-
-    with c_calc2:
-        st.metric("🎯 1RM Estimada", f"{rm1_est} kg")
-        st.caption(f"Baseado em {reps_input} reps com {carga_input} kg")
-
-    st.markdown("---")
-    st.subheader("📋 Tabela Preditiva de Cargas (1RM - 10RM)")
+    sub_lpo, sub_gym = st.tabs(["🏋️ LPO & Barra Olímpica", "🤸 Ginástica & Peso Corporal"])
     
-    cols_rm = st.columns(5)
-    rm_items = list(tabela_rms.items())
-    
-    for idx, (rm_label, val) in enumerate(rm_items):
-        col_idx = idx % 5
-        with cols_rm[col_idx]:
-            st.metric(label=rm_label, value=f"{val} kg")
+    # --- SUB-ABA: LPO ---
+    with sub_lpo:
+        st.subheader("Estimativa de 1RM a 10RM (Cargas de LPO)")
+        c_calc1, c_calc2 = st.columns(2)
+        with c_calc1:
+            carga_input = st.number_input("Carga levantada (kg)", min_value=1.0, value=80.0, step=2.5, key="rm_carga_input")
+            reps_input = st.number_input("Repetições realizadas", min_value=1, max_value=30, value=5, key="rm_reps_input")
+        
+        rm1_est, tabela_rms = calcular_rm_lpo(carga_input, reps_input)
+
+        with c_calc2:
+            st.metric("🎯 1RM Estimada", f"{rm1_est} kg")
+            st.caption(f"Baseado em {reps_input} reps com {carga_input} kg")
+
+        st.markdown("---")
+        st.subheader("📋 Tabela Preditiva de Cargas")
+        cols_rm = st.columns(5)
+        rm_items = list(tabela_rms.items())
+        for idx, (rm_label, val) in enumerate(rm_items):
+            col_idx = idx % 5
+            with cols_rm[col_idx]:
+                st.metric(label=rm_label, value=f"{val} kg")
+
+    # --- SUB-ABA: GINÁSTICA ---
+    with sub_gym:
+        st.subheader("🤸 Preditor Ginástico (Weighted & Fadiga)")
+        
+        modo_gym = st.radio("Escolha o tipo de teste:", ["Com Carga Extra (Weighted)", "Fadiga em Sets Sucessivos (Bodyweight)"], horizontal=True)
+        
+        if modo_gym == "Com Carga Extra (Weighted)":
+            st.caption("Calcule sua 1RM de carga extra em movimentos como Pull-ups, Dips e HSPU com colete/anilha.")
+            g1, g2 = st.columns(2)
+            with g1:
+                peso_atleta = st.number_input("Seu Peso Corporal (kg)", min_value=40.0, value=75.0, step=1.0)
+                carga_adicional = st.number_input("Carga Adicional Utilizada (kg)", min_value=0.0, value=15.0, step=2.5)
+                reps_gym = st.number_input("Repetições Concluídas", min_value=1, max_value=25, value=3, key="reps_gym_w")
+            
+            carga_extra_1rm, peso_total_1rm, reps_bw_est = calcular_rm_gym_com_carga(peso_atleta, carga_adicional, reps_gym)
+            
+            with g2:
+                st.metric("🎯 Carga Máxima Adicional (1RM)", f"+{carga_extra_1rm} kg")
+                st.metric("🏋️ Peso Total Movido em 1RM", f"{peso_total_1rm} kg")
+                st.metric("🔥 Reps Máximas Est. sem Carga (Bodyweight)", f"~{reps_bw_est} reps")
+        
+        else:
+            st.caption("Preveja a queda de repetições acumulada em múltiplas séries unbroken.")
+            f1, f2 = st.columns(2)
+            with f1:
+                max_unbroken = st.number_input("Seu Máximo Unbroken (1 Set)", min_value=1, value=20)
+                num_sets_gym = st.number_input("Número de Sets Planejados", min_value=2, max_value=10, value=4)
+                descanso_seg = st.number_input("Tempo de Descanso entre Sets (seg)", min_value=10, value=60, step=5)
+            
+            with f2:
+                # Fator de recuperação baseado no descanso (em relação a 90s ideal)
+                recuperacao = min(1.0, descanso_seg / 90.0)
+                queda_por_set = (1.0 - (recuperacao * 0.25))
+                
+                reps_projetadas = []
+                reps_atual = max_unbroken
+                for s in range(num_sets_gym):
+                    reps_projetadas.append(int(reps_atual))
+                    reps_atual = max(1, reps_atual * queda_por_set)
+                
+                st.markdown("### 📉 Projeção de Reps por Set:")
+                cols_sets = st.columns(min(5, num_sets_gym))
+                for idx_s, r_proj in enumerate(reps_projetadas):
+                    c_idx = idx_s % 5
+                    with cols_sets[c_idx]:
+                        st.metric(f"Set {idx_s+1}", f"{r_proj} reps")
+                
+                st.info(f"**Total acumulado estimado:** {sum(reps_projetadas)} reps.")
+
 
