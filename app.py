@@ -11,8 +11,7 @@ st.set_page_config(
 
 # 2. Lógica de Autenticação
 def checar_senha():
-    # Defina aqui a sua senha
-    SENHA_CORRETA = "wodpredictor" 
+    SENHA_CORRETA = "SUA_SENHA_AQUI"  # <--- Altere para a sua senha
 
     def senha_digitada():
         if st.session_state["password_input"] == SENHA_CORRETA:
@@ -33,7 +32,7 @@ def checar_senha():
 if not checar_senha():
     st.stop()
 
-# 3. CSS para limpar a interface
+# 3. CSS de limpeza
 custom_css = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -46,7 +45,7 @@ st.markdown(custom_css, unsafe_allow_html=True)
 # 4. Interface Principal
 st.title("🏋️ CrossFit WOD Time Predictor PRO")
 
-# Bloco do Perfil (Expansível para não poluir o layout)
+# Perfil do Atleta
 with st.expander("👤 **CONFIGURAR SEU PERFIL (1RM & REPS MÁXIMAS)**", expanded=True):
     st.markdown("### 🏋️ Força Máxima (1RM em kg)")
     c1, c2 = st.columns(2)
@@ -86,7 +85,7 @@ with st.expander("👤 **CONFIGURAR SEU PERFIL (1RM & REPS MÁXIMAS)**", expande
         pace_bike = st.number_input("Pace Bike (seg / 10cal)", min_value=5.0, value=18.0, step=1.0)
         pace_du = st.number_input("Seg / 10 Double Unders", min_value=1.0, value=6.0, step=0.5)
 
-# Banco de dados
+# Banco de dados de exercícios
 EXERCISES = {
     "Thruster": {"type": "lpo", "rm_key": "thruster", "tpr": 2.2, "pattern": "push_legs"},
     "Deadlift": {"type": "lpo", "rm_key": "deadlift", "tpr": 2.0, "pattern": "pull_posterior"},
@@ -116,12 +115,14 @@ EXERCISES = {
 st.divider()
 st.header("📋 Estrutura do WOD")
 c_format, c_config = st.columns(2)
-with c_format: wod_format = st.selectbox("Formato", ["For Time", "AMRAP"])
+with c_format:
+    wod_format = st.selectbox("Formato", ["For Time", "AMRAP"])
 with c_config:
     if wod_format == "For Time":
         num_rounds = st.number_input("Rodadas", min_value=1, value=3)
         time_cap = st.number_input("Time Cap (min)", min_value=0, value=15)
-    else: amrap_minutes = st.number_input("Minutos", min_value=1, value=12)
+    else:
+        amrap_minutes = st.number_input("Minutos", min_value=1, value=12)
 
 num_movements = st.slider("Qtd Movimentos", 1, 5, 2)
 mov_inputs = []
@@ -136,49 +137,56 @@ for i in range(num_movements):
 def calc(name, reps, load, r_d, m_d, p_d):
     info = EXERCISES[name]
     if info["type"] == "lpo":
-        pct = load / r_d.get(info["rm_key"], 80)
+        pct = load / r_d.get(info["rm_key"], 80.0)
         tpr = info["tpr"] * (1 + (pct**2))
-        sets = math.ceil(reps / max(2, int(15*(1-pct))))
-        rest = 8 + (pct*14)
+        sets = math.ceil(reps / max(2, int(15 * (1 - pct))))
+        rest = 8 + (pct * 14)
     elif info["type"] == "gym":
         tpr = info["tpr"]
-        sets = math.ceil(reps / max(2, int(m_d.get(info["max_key"], 15)*0.45)))
+        sets = math.ceil(reps / max(2, int(m_d.get(info["max_key"], 15) * 0.45)))
         rest = 7.0
     else:
         tpr = p_d.get(info["pace_key"], 3.0) / (100 if "m" in name else 10)
         sets, rest = 1, 0.0
-    return (reps * tpr) + ((sets-1) * rest), sets, info["pattern"]
+    return (reps * tpr) + ((sets - 1) * rest), sets, rest, info["pattern"]
 
+# BOTÃO E EXECUÇÃO DOS CÁLCULOS
 if st.button("🚀 Calcular", use_container_width=True, type="primary"):
-    r_d = {'thruster':rm_thruster,'deadlift':rm_deadlift,'bsquat':rm_bsquat,'fsquat':rm_fsquat,'ohs':rm_ohs,'cj':rm_cj,'snatch':rm_snatch,'pclean':rm_pclean,'ppress':rm_ppress}
-    m_d = {'pullups':max_pullups,'c2b':max_c2b,'bmu':max_bmu,'rmu':max_rmu,'ttb':max_ttb,'hspu':max_hspu,'hsw':max_hsw,'rope':max_rope,'pistols':max_pistols}
-    p_d = {'burpee':pace_burpee,'run':pace_run,'row':pace_row,'bike':pace_bike,'du':pace_du}
+    r_d = {'thruster': rm_thruster, 'deadlift': rm_deadlift, 'bsquat': rm_bsquat, 'fsquat': rm_fsquat, 'ohs': rm_ohs, 'cj': rm_cj, 'snatch': rm_snatch, 'pclean': rm_pclean, 'ppress': rm_ppress}
+    m_d = {'pullups': max_pullups, 'c2b': max_c2b, 'bmu': max_bmu, 'rmu': max_rmu, 'ttb': max_ttb, 'hspu': max_hspu, 'hsw': max_hsw, 'rope': max_rope, 'pistols': max_pistols}
+    p_d = {'burpee': pace_burpee, 'run': pace_run, 'row': pace_row, 'bike': pace_bike, 'du': pace_du}
     
-    rt, pats, bk = 0.0, [], []
+    rt, pats = 0.0, []
+    breakdowns = []
+    
     for i, m in enumerate(mov_inputs):
-        t, s, p = calc(m["name"], m["reps"], m["load"], r_d, m_d, p_d)
-        pen = 1.25 if (i > 0 and (p in pats[-1] or pats[-1] in p)) else 1.0
-        rt += t * pen
+        t, s, rest_s, p = calc(m["name"], m["reps"], m["load"], r_d, m_d, p_d)
+        penalty = (i > 0 and (p in pats[-1] or pats[-1] in p))
+        pen_factor = 1.25 if penalty else 1.0
+        
+        rt += t * pen_factor
         pats.append(p)
-        bk.append((m["name"], s, pen > 1.0))
+        
+        breakdowns.append({
+            "name": m["name"],
+            "reps": m["reps"],
+            "sets": s,
+            "rest": rest_s + (5.0 if penalty else 0.0),
+            "penalty": penalty
+        })
         
     rt += num_movements * 5.0
+    
     st.subheader("🎯 Resultado")
     if wod_format == "For Time":
         tot = rt * num_rounds
-        st.metric("Tempo Total", f"{int(tot//60)}:{int(tot%60):02d}")
+        st.metric("Tempo Total Estimado", f"{int(tot//60)}:{int(tot%60):02d} min")
     else:
         rnds = (amrap_minutes * 60) / rt
-        st.metric("Estimativa", f"{int(rnds)} rounds + {int((rnds-int(rnds))*sum(m['reps'] for m in mov_inputs))} reps")
+        full_r = int(rnds)
+        extra_reps = int((rnds - full_r) * sum(m['reps'] for m in mov_inputs))
+        st.metric("Estimativa de Score", f"{full_r} rounds + {extra_reps} reps")
     
-    st.success("💡 Estratégia")
-    for b in bk:
-        st.write(f"- {b[0]}: {b[1]} sets{' (⚠️ Fadiga detectada)' if b[2] else ''}")
-
-    st.markdown("---")
-      # ---------------------------------------------------------
-    # ANÁLISE TÁTICA E ESTRATÉGIA DE QUEBRA DETALHADA
-    # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("💡 Análise Tática e Estratégia de Quebra")
 
@@ -187,22 +195,19 @@ if st.button("🚀 Calcular", use_container_width=True, type="primary"):
         sets = b["sets"]
         rest = b["rest"]
         penalty = b["penalty"]
-        reps = next(m["reps"] for m in mov_inputs if m["name"] == name)
+        reps = b["reps"]
 
-        # Cálculo das repetições por conjunto
         base_reps = reps // sets
         rem_reps = reps % sets
 
-        # Construção da sugestão de sets (ex: "10 - 10 - 10" ou "10 - 10 - 5")
         if sets > 1:
-            set_list = [base_reps + (1 if i < rem_reps else 0) for i in range(sets)]
+            set_list = [base_reps + (1 if k < rem_reps else 0) for k in range(sets)]
             set_str = " - ".join(map(str, set_list))
-            
-            msg = f"**{name}** ({reps} reps): Divida em **{sets} sets** (`{set_str}`). Descanso sugerido: **{int(rest)}s** entre cada set."
+            msg = f"**{name}** ({reps} reps): Divida em **{sets} sets** (`{set_str}`). Descanso sugerido: **{int(rest)}s** entre os sets."
         else:
             msg = f"**{name}** ({reps} reps): Faça **unbroken** (set único) mantendo ritmo constante."
 
         if penalty:
-            st.warning(f"⚠️ {msg}\n\n*Atenção: Este movimento sofre interferência de fadiga local devido ao exercício anterior. Adicione +3s a +5s no descanso entre os sets.*")
+            st.warning(f"⚠️ {msg}\n\n*Atenção: Fadiga muscular por interferência do movimento anterior. Adicione +5s de pausa.*")
         else:
             st.info(f"✅ {msg}")
