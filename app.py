@@ -1,14 +1,18 @@
 import streamlit as st
 import math
 
+import streamlit as st
+import math
+
+# 1. Configuração da página (Verifique se todos os parênteses estão fechados)
 st.set_page_config(
     page_title="CrossFit WOD Predictor PRO", 
     page_icon="🏋️", 
     layout="wide",
-    initial_sidebar_state="expanded"  # <--- Força a barra a abrir por padrão
-# ---------------------------------------------------------
-# CSS DE LIMPEZA DA INTERFACE
-# ---------------------------------------------------------
+    initial_sidebar_state="expanded"
+)
+
+# 2. Oculta menus desnecessários
 custom_css = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -18,16 +22,13 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# ATALHO PARA DISPOSITIVOS MÓVEIS (CASO A SIDEBAR SEJA RECOLHIDA)
-# ---------------------------------------------------------
+st.title("🏋️ CrossFit WOD Time Predictor PRO")
+st.caption("Estimador avançado de tempo, ritmo e rounds considerando degradação muscular e interferência neuromuscular.")
+
+# 3. Atalho expansível para telas pequenas
 with st.expander("⚙️ **Configurar 1RM e Reps Máximas (Clique para abrir no celular)**", expanded=False):
-    st.info("💡 As métricas de força e ginásticos também podem ser editadas no menu lateral.")
+    st.info("💡 As métricas de força e ginásticos também podem ser editadas na barra lateral.")
 
-import streamlit as st
-
-# Configuração da página
-st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
 
 # ---------------------------------------------------------
 # AUTENTICAÇÃO / CONTROLE DE ACESSO
