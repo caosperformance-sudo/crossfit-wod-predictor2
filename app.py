@@ -1,37 +1,28 @@
 import streamlit as st
 import math
 
-st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
+st.set_page_config(
+    page_title="CrossFit WOD Predictor PRO", 
+    page_icon="🏋️", 
+    layout="wide",
+    initial_sidebar_state="expanded"  # <--- Força a barra a abrir por padrão
 # ---------------------------------------------------------
-# CORREÇÃO DEFINITIVA DO BOTÃO DA SIDEBAR PARA CELULAR
+# CSS DE LIMPEZA DA INTERFACE
 # ---------------------------------------------------------
 custom_css = """
     <style>
-    /* Esconde o menu de opções do canto direito e rodapé */
     #MainMenu {visibility: hidden;}
     [data-testid="stToolbar"] {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Garante que o botão de EXPANDIR a barra (quando fechada) fique visível e fixo no topo esquerdo */
-    [data-testid="stSidebarExpandButton"] {
-        visibility: visible !important;
-        display: flex !important;
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
-        z-index: 999999 !important;
-        background-color: rgba(255, 255, 255, 0.8) !important;
-        border-radius: 5px !important;
-    }
-
-    /* Mantém o botão de RECOLHER a barra visível */
-    [data-testid="stSidebarCollapseButton"] {
-        visibility: visible !important;
-        display: flex !important;
-    }
     </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# ATALHO PARA DISPOSITIVOS MÓVEIS (CASO A SIDEBAR SEJA RECOLHIDA)
+# ---------------------------------------------------------
+with st.expander("⚙️ **Configurar 1RM e Reps Máximas (Clique para abrir no celular)**", expanded=False):
+    st.info("💡 As métricas de força e ginásticos também podem ser editadas no menu lateral.")
 
 import streamlit as st
 
