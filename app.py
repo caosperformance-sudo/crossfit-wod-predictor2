@@ -3,27 +3,35 @@ import math
 
 st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
 # ---------------------------------------------------------
-# OCULTAR APENAS O MENU SUPERIOR E MANTER A SETA LATERAL VISÍVEL
+# CORREÇÃO DEFINITIVA DO BOTÃO DA SIDEBAR PARA CELULAR
 # ---------------------------------------------------------
-hide_streamlit_style = """
+custom_css = """
     <style>
-    /* Esconde o menu de 3 pontos do topo direito */
+    /* Esconde o menu de opções do canto direito e rodapé */
     #MainMenu {visibility: hidden;}
-    
-    /* Esconde a barra de ferramentas/gerenciamento do Streamlit */
     [data-testid="stToolbar"] {visibility: hidden;}
-    
-    /* Esconde o rodapé padrão */
     footer {visibility: hidden;}
     
-    /* Garante que o botão da seta da sidebar (menu esquerdo) continue visível no celular */
+    /* Garante que o botão de EXPANDIR a barra (quando fechada) fique visível e fixo no topo esquerdo */
+    [data-testid="stSidebarExpandButton"] {
+        visibility: visible !important;
+        display: flex !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        z-index: 999999 !important;
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        border-radius: 5px !important;
+    }
+
+    /* Mantém o botão de RECOLHER a barra visível */
     [data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
-        display: block !important;
+        display: flex !important;
     }
     </style>
 """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.markdown(custom_css, unsafe_allow_html=True)
 
 import streamlit as st
 
