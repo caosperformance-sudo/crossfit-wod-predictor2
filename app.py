@@ -12,7 +12,7 @@ st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️",
 # ---------------------------------------------------------
 def checar_senha():
     def senha_digitada():
-        if st.session_state["password_input"] == "SUA_SENHA_AQUI":  # <--- Defina sua senha aqui
+        if st.session_state["password_input"] == "wodpredictor":  # <--- Defina sua senha aqui
             st.session_state["authenticated"] = True
             del st.session_state["password_input"]
         else:
