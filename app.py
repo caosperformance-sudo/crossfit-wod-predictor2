@@ -3,7 +3,43 @@ import math
 
 # 1. Configuração da página
 st.set_page_config(
-    page_title="CrossFit WOD Predictor PRO", 
+  st.title("🏋️ CrossFit WOD Predictor & Performance PRO")
+
+# Criação das abas
+aba_wod, aba_rm = st.tabs(["⏱️ Preditor de Tempo de WOD", "📊 Calculadora Preditora de PR / Rep Max"])
+
+with aba_wod:
+    # AQUI FICA TODO O SEU CÓDIGO ATUAL DE CÁLCULO DE WOD
+    # (Desde o 'with st.expander("👤 CONFIGURAR SEU PERFIL...")' até a análise tática)
+    pass # substitua esse 'pass' pelo código do seu WOD
+
+with aba_rm:
+    st.header("📊 Calculadora de PR & Estimativa de Rep Max")
+    st.markdown("Calcule sua **1RM estimada** e obtenha a tabela de cargas de **1RM a 10RM** a partir de qualquer série recente.")
+
+    c_calc1, c_calc2 = st.columns(2)
+    with c_calc1:
+        carga_input = st.number_input("Carga levantada (kg)", min_value=1.0, value=80.0, step=2.5)
+        reps_input = st.number_input("Repetições realizadas", min_value=1, max_value=30, value=5)
+    
+    rm1_est, tabela_rms = calcular_rm(carga_input, reps_input)
+
+    with c_calc2:
+        st.metric("🎯 1RM Estimada", f"{rm1_est} kg")
+        st.caption(f"Baseado em {reps_input} reps com {carga_input} kg")
+
+    st.markdown("---")
+    st.subheader("📋 Tabela Preditiva de Cargas (1RM - 10RM)")
+    
+    # Exibe a tabela formatada em colunas de visualização rápida
+    cols_rm = st.columns(5)
+    rm_items = list(tabela_rms.items())
+    
+    for idx, (rm_label, val) in enumerate(rm_items):
+        col_idx = idx % 5
+        with cols_rm[col_idx]:
+            st.metric(label=rm_label, value=f"{val} kg")
+
     page_icon="🏋️", 
     layout="wide",
     initial_sidebar_state="auto"
@@ -111,6 +147,23 @@ EXERCISES = {
     "Echo / BikeErg (cal)": {"type": "cardio", "pace_key": "bike", "tpr": 1.8, "pattern": "legs_engine"},
     "Double Unders": {"type": "cardio", "pace_key": "du", "tpr": 0.6, "pattern": "engine_shoulders"}
 }
+def calcular_rm(carga, reps):
+    if reps == 1:
+        rm1 = carga
+    else:
+        # Média ponderada entre as fórmulas de Epley e Brzycki
+        epley = carga * (1 + reps / 30)
+        brzycki = carga * (36 / (37 - reps)) if reps < 37 else epley
+        rm1 = (epley + brzycki) / 2
+
+    # Tabela de percentuais para estimar de 1RM até 10RM
+    percentuais = {
+        1: 1.00, 2: 0.95, 3: 0.93, 4: 0.90, 5: 0.87,
+        6: 0.85, 7: 0.83, 8: 0.80, 9: 0.77, 10: 0.75
+    }
+    
+    tabela = {f"{r}RM": round(rm1 * pct, 1) for r, pct in percentuais.items()}
+    return round(rm1, 1), tabela
 
 st.divider()
 st.header("📋 Estrutura do WOD")
