@@ -4,6 +4,26 @@ import math
 st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
 import streamlit as st
 
+st.set_page_config(
+    page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide"
+)
+
+# ---------------------------------------------------------
+# OCULTAR ELEMENTOS DA INTERFACE (MENU, FOOTER E BARRA SUPERIOR)
+# ---------------------------------------------------------
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stHeader"] {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+import streamlit as st
+
 # Configuração da página
 st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
 
