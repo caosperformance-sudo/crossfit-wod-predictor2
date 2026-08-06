@@ -176,7 +176,7 @@ if st.button("🚀 Calcular", use_container_width=True, type="primary"):
         st.write(f"- {b[0]}: {b[1]} sets{' (⚠️ Fadiga detectada)' if b[2] else ''}")
 
     st.markdown("---")
-        # ---------------------------------------------------------
+      # ---------------------------------------------------------
     # ANÁLISE TÁTICA E ESTRATÉGIA DE QUEBRA DETALHADA
     # ---------------------------------------------------------
     st.markdown("---")
