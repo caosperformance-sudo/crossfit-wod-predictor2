@@ -1,7 +1,7 @@
 import streamlit as st
 import math
 
-# 1. Configuração da página (Compatível com PC e Celular)
+# 1. Configuração da página
 st.set_page_config(
     page_title="CrossFit WOD Predictor PRO", 
     page_icon="🏋️", 
@@ -9,7 +9,31 @@ st.set_page_config(
     initial_sidebar_state="auto"
 )
 
-# 2. Oculta menus desnecessários mantendo a interface limpa
+# 2. Lógica de Autenticação
+def checar_senha():
+    # Defina aqui a sua senha
+    SENHA_CORRETA = "wodpredictor" 
+
+    def senha_digitada():
+        if st.session_state["password_input"] == SENHA_CORRETA:
+            st.session_state["authenticated"] = True
+            del st.session_state["password_input"]
+        else:
+            st.session_state["authenticated"] = False
+
+    if "authenticated" not in st.session_state:
+        st.text_input("🔑 Digite a senha para acessar o app:", type="password", on_change=senha_digitada, key="password_input")
+        return False
+    elif not st.session_state["authenticated"]:
+        st.text_input("🔑 Senha incorreta. Tente novamente:", type="password", on_change=senha_digitada, key="password_input")
+        return False
+    else:
+        return True
+
+if not checar_senha():
+    st.stop()
+
+# 3. CSS para limpar a interface
 custom_css = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -19,58 +43,51 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
+# 4. Interface Principal
 st.title("🏋️ CrossFit WOD Time Predictor PRO")
-st.caption("Estimador avançado de tempo, ritmo e rounds considerando degradação muscular e interferência neuromuscular.")
 
-# ---------------------------------------------------------
-# PERFIL DO ATLETA (TELA PRINCIPAL - FUNCIONA EM PC E CELULAR)
-# ---------------------------------------------------------
+# Bloco do Perfil (Expansível para não poluir o layout)
 with st.expander("👤 **CONFIGURAR SEU PERFIL (1RM & REPS MÁXIMAS)**", expanded=True):
     st.markdown("### 🏋️ Força Máxima (1RM em kg)")
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
+    c1, c2 = st.columns(2)
+    with c1:
         rm_thruster = st.number_input("Thruster", min_value=1.0, value=80.0, step=2.5)
         rm_deadlift = st.number_input("Deadlift", min_value=1.0, value=140.0, step=5.0)
         rm_bsquat = st.number_input("Back Squat", min_value=1.0, value=120.0, step=2.5)
         rm_fsquat = st.number_input("Front Squat", min_value=1.0, value=100.0, step=2.5)
         rm_ohs = st.number_input("Overhead Squat", min_value=1.0, value=75.0, step=2.5)
-    with col_s2:
+    with c2:
         rm_cj = st.number_input("Clean & Jerk", min_value=1.0, value=90.0, step=2.5)
         rm_snatch = st.number_input("Snatch", min_value=1.0, value=70.0, step=2.5)
         rm_pclean = st.number_input("Power Clean", min_value=1.0, value=85.0, step=2.5)
         rm_ppress = st.number_input("Push Press", min_value=1.0, value=75.0, step=2.5)
 
-    st.markdown("---")
     st.markdown("### 🤸 Capacidade Ginástica (Max Unbroken)")
-    col_g1, col_g2 = st.columns(2)
-    with col_g1:
+    c3, c4 = st.columns(2)
+    with c3:
         max_pullups = st.number_input("Pull-ups", min_value=1, value=25)
         max_c2b = st.number_input("Chest to Bar", min_value=1, value=18)
         max_bmu = st.number_input("Bar Muscle-ups", min_value=1, value=8)
         max_rmu = st.number_input("Ring Muscle-ups", min_value=1, value=6)
         max_ttb = st.number_input("Toes to Bar", min_value=1, value=20)
-    with col_g2:
+    with c4:
         max_hspu = st.number_input("HSPU", min_value=1, value=15)
         max_hsw = st.number_input("HS Walk (m)", min_value=1, value=15)
         max_rope = st.number_input("Rope Climb", min_value=1, value=4)
         max_pistols = st.number_input("Pistols (cada perna)", min_value=1, value=15)
 
-    st.markdown("---")
     st.markdown("### 🏃 Ergômetros e Pace")
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
+    c5, c6 = st.columns(2)
+    with c5:
         pace_burpee = st.number_input("Seg/Burpee", min_value=1.0, value=3.0, step=0.1)
         pace_run = st.number_input("Pace Corrida (seg / 100m)", min_value=10.0, value=25.0, step=1.0)
-        pace_du = st.number_input("Seg / 10 Double Unders", min_value=1.0, value=6.0, step=0.5)
-    with col_c2:
+    with c6:
         pace_row = st.number_input("Pace Remo/Ski (seg / 100m ou 10cal)", min_value=10.0, value=22.0, step=1.0)
         pace_bike = st.number_input("Pace Bike (seg / 10cal)", min_value=5.0, value=18.0, step=1.0)
+        pace_du = st.number_input("Seg / 10 Double Unders", min_value=1.0, value=6.0, step=0.5)
 
-# ---------------------------------------------------------
-# DATABASE DE EXERCÍCIOS
-# ---------------------------------------------------------
+# Banco de dados
 EXERCISES = {
-    # LPO / Barbell
     "Thruster": {"type": "lpo", "rm_key": "thruster", "tpr": 2.2, "pattern": "push_legs"},
     "Deadlift": {"type": "lpo", "rm_key": "deadlift", "tpr": 2.0, "pattern": "pull_posterior"},
     "Back Squat": {"type": "lpo", "rm_key": "bsquat", "tpr": 2.3, "pattern": "legs"},
@@ -80,8 +97,6 @@ EXERCISES = {
     "Snatch": {"type": "lpo", "rm_key": "snatch", "tpr": 2.8, "pattern": "full_body"},
     "Power Clean": {"type": "lpo", "rm_key": "pclean", "tpr": 2.1, "pattern": "pull_posterior"},
     "Push Press": {"type": "lpo", "rm_key": "ppress", "tpr": 1.9, "pattern": "push"},
-
-    # Ginásticos
     "Pull-up": {"type": "gym", "max_key": "pullups", "tpr": 1.4, "pattern": "pull_upper"},
     "Chest to Bar": {"type": "gym", "max_key": "c2b", "tpr": 1.6, "pattern": "pull_upper"},
     "Bar Muscle-up": {"type": "gym", "max_key": "bmu", "tpr": 3.0, "pattern": "pull_push_upper"},
@@ -91,166 +106,74 @@ EXERCISES = {
     "Handstand Walk (m)": {"type": "gym", "max_key": "hsw", "tpr": 0.8, "pattern": "push_shoulders"},
     "Rope Climb": {"type": "gym", "max_key": "rope", "tpr": 7.0, "pattern": "pull_upper"},
     "Pistols": {"type": "gym", "max_key": "pistols", "tpr": 2.0, "pattern": "legs"},
-
-    # Ergômetros / Engine
     "Burpee": {"type": "cardio", "pace_key": "burpee", "tpr": 3.0, "pattern": "push_engine"},
     "Corrida (m)": {"type": "cardio", "pace_key": "run", "tpr": 0.25, "pattern": "legs_engine"},
     "Remo (m/cal)": {"type": "cardio", "pace_key": "row", "tpr": 0.22, "pattern": "pull_engine"},
-    "SkiErg (m/cal)": {"type": "cardio", "pace_key": "row", "tpr": 0.22, "pattern": "pull_engine"},
     "Echo / BikeErg (cal)": {"type": "cardio", "pace_key": "bike", "tpr": 1.8, "pattern": "legs_engine"},
     "Double Unders": {"type": "cardio", "pace_key": "du", "tpr": 0.6, "pattern": "engine_shoulders"}
 }
 
 st.divider()
-
-# ---------------------------------------------------------
-# ESTRUTURA DO WOD
-# ---------------------------------------------------------
 st.header("📋 Estrutura do WOD")
-
 c_format, c_config = st.columns(2)
-with c_format:
-    wod_format = st.selectbox("Formato do Treino", ["For Time", "AMRAP"])
+with c_format: wod_format = st.selectbox("Formato", ["For Time", "AMRAP"])
 with c_config:
     if wod_format == "For Time":
-        num_rounds = st.number_input("Número de Rodadas", min_value=1, value=3)
-        time_cap = st.number_input("Time Cap (minutos, 0 se sem cap)", min_value=0, value=15)
-    else:
-        amrap_minutes = st.number_input("Tempo do AMRAP (minutos)", min_value=1, value=12)
+        num_rounds = st.number_input("Rodadas", min_value=1, value=3)
+        time_cap = st.number_input("Time Cap (min)", min_value=0, value=15)
+    else: amrap_minutes = st.number_input("Minutos", min_value=1, value=12)
 
-num_movements = st.slider("Quantidade de Movimentos no WOD", min_value=1, max_value=5, value=2)
-
-st.subheader("Configuração dos Movimentos")
-
+num_movements = st.slider("Qtd Movimentos", 1, 5, 2)
 mov_inputs = []
-exercise_names = sorted(list(EXERCISES.keys()))
-
 cols = st.columns(num_movements)
 for i in range(num_movements):
     with cols[i]:
-        st.markdown(f"**Movimento {i+1}**")
-        ex_name = st.selectbox(f"Exercício {i+1}", exercise_names, key=f"ex_{i}")
-        reps = st.number_input(f"Volume/Reps (Mov {i+1})", min_value=1, value=15, key=f"reps_{i}")
-        
-        ex_info = EXERCISES[ex_name]
-        load = 0.0
-        if ex_info["type"] == "lpo":
-            load = st.number_input(f"Carga (kg)", min_value=0.0, value=40.0, step=2.5, key=f"load_{i}")
-            
+        ex_name = st.selectbox(f"Mov {i+1}", sorted(list(EXERCISES.keys())), key=f"ex_{i}")
+        reps = st.number_input(f"Reps {i+1}", min_value=1, value=15, key=f"reps_{i}")
+        load = st.number_input(f"Carga (kg)", min_value=0.0, value=40.0, key=f"load_{i}") if EXERCISES[ex_name]["type"] == "lpo" else 0.0
         mov_inputs.append({"name": ex_name, "reps": reps, "load": load})
 
-# ---------------------------------------------------------
-# FUNÇÃO DE CÁLCULO
-# ---------------------------------------------------------
-def calcular_tempo_movimento(name, reps, load, rm_dict, max_dict, pace_dict):
+def calc(name, reps, load, r_d, m_d, p_d):
     info = EXERCISES[name]
-    ex_type = info["type"]
-    
-    if ex_type == "lpo":
-        rm_val = rm_dict.get(info["rm_key"], 80.0)
-        pct = load / rm_val if rm_val > 0 else 0.5
-        tpr = info["tpr"] * (1 + (pct ** 2))
-        max_safe_set = max(2, int(15 * (1 - pct)))
-        sets = math.ceil(reps / max_safe_set)
-        rest_per_set = 8 + (pct * 14)
-        
-    elif ex_type == "gym":
-        max_unbroken = max_dict.get(info["max_key"], 15)
+    if info["type"] == "lpo":
+        pct = load / r_d.get(info["rm_key"], 80)
+        tpr = info["tpr"] * (1 + (pct**2))
+        sets = math.ceil(reps / max(2, int(15*(1-pct))))
+        rest = 8 + (pct*14)
+    elif info["type"] == "gym":
         tpr = info["tpr"]
-        safe_set = max(2, int(max_unbroken * 0.45))
-        sets = math.ceil(reps / safe_set)
-        rest_per_set = 7.0 + (sets * 0.8)
-        
-    else: # cardio
-        p_val = pace_dict.get(info["pace_key"], 3.0)
-        if name in ["Corrida (m)", "Remo (m/cal)", "SkiErg (m/cal)"]:
-            tpr = p_val / 100.0
-        elif name in ["Echo / BikeErg (cal)", "Double Unders"]:
-            tpr = p_val / 10.0
-        else:
-            tpr = p_val
-            
-        sets = 1
-        rest_per_set = 0.0
-        
-    exec_time = reps * tpr
-    total_rest = (sets - 1) * rest_per_set
-    return exec_time + total_rest, sets, rest_per_set, info["pattern"]
+        sets = math.ceil(reps / max(2, int(m_d.get(info["max_key"], 15)*0.45)))
+        rest = 7.0
+    else:
+        tpr = p_d.get(info["pace_key"], 3.0) / (100 if "m" in name else 10)
+        sets, rest = 1, 0.0
+    return (reps * tpr) + ((sets-1) * rest), sets, info["pattern"]
 
-st.markdown("---")
-
-if st.button("🚀 Calcular Estimativa de Desempenho", use_container_width=True, type="primary"):
+if st.button("🚀 Calcular", use_container_width=True, type="primary"):
+    r_d = {'thruster':rm_thruster,'deadlift':rm_deadlift,'bsquat':rm_bsquat,'fsquat':rm_fsquat,'ohs':rm_ohs,'cj':rm_cj,'snatch':rm_snatch,'pclean':rm_pclean,'ppress':rm_ppress}
+    m_d = {'pullups':max_pullups,'c2b':max_c2b,'bmu':max_bmu,'rmu':max_rmu,'ttb':max_ttb,'hspu':max_hspu,'hsw':max_hsw,'rope':max_rope,'pistols':max_pistols}
+    p_d = {'burpee':pace_burpee,'run':pace_run,'row':pace_row,'bike':pace_bike,'du':pace_du}
     
-    rm_dict = {
-        'thruster': rm_thruster, 'deadlift': rm_deadlift, 'bsquat': rm_bsquat,
-        'fsquat': rm_fsquat, 'ohs': rm_ohs, 'cj': rm_cj, 'snatch': rm_snatch,
-        'pclean': rm_pclean, 'ppress': rm_ppress
-    }
-    max_dict = {
-        'pullups': max_pullups, 'c2b': max_c2b, 'bmu': max_bmu, 'rmu': max_rmu,
-        'ttb': max_ttb, 'hspu': max_hspu, 'hsw': max_hsw, 'rope': max_rope, 'pistols': max_pistols
-    }
-    pace_dict = {
-        'burpee': pace_burpee, 'run': pace_run, 'row': pace_row,
-        'bike': pace_bike, 'du': pace_du
-    }
-    
-    round_time_raw = 0.0
-    patterns = []
-    breakdowns = []
-    
-    for idx, mov in enumerate(mov_inputs):
-        t_mov, sets, rest, pattern = calcular_tempo_movimento(
-            mov["name"], mov["reps"], mov["load"], rm_dict, max_dict, pace_dict
-        )
+    rt, pats, bk = 0.0, [], []
+    for i, m in enumerate(mov_inputs):
+        t, s, p = calc(m["name"], m["reps"], m["load"], r_d, m_d, p_d)
+        pen = 1.25 if (i > 0 and (p in pats[-1] or pats[-1] in p)) else 1.0
+        rt += t * pen
+        pats.append(p)
+        bk.append((m["name"], s, pen > 1.0))
         
-        interference_penalty = 1.0
-        if idx > 0 and (pattern in patterns[-1] or patterns[-1] in pattern):
-            interference_penalty = 1.25
-            
-        t_mov_final = t_mov * interference_penalty
-        round_time_raw += t_mov_final
-        patterns.append(pattern)
-        
-        breakdowns.append({
-            "name": mov["name"],
-            "time": t_mov_final,
-            "sets": sets,
-            "rest": rest,
-            "penalty": interference_penalty > 1.0
-        })
-        
-    transitions_time = num_movements * 5.0
-    round_time_total = round_time_raw + transitions_time
-    
-    st.subheader("🎯 Resultado da Previsão")
-    
+    rt += num_movements * 5.0
+    st.subheader("🎯 Resultado")
     if wod_format == "For Time":
-        total_wod_time = round_time_total * num_rounds
-        mins = int(total_wod_time // 60)
-        secs = int(total_wod_time % 60)
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Tempo Total Estimado", f"{mins:02d}:{secs:02d} min")
-        c2.metric("Pace Médio por Rodada", f"{int(round_time_total // 60):02d}:{int(round_time_total % 60):02d} min")
-        
-        cap_seconds = time_cap * 60 if time_cap > 0 else 999999
-        if time_cap > 0 and total_wod_time > cap_seconds:
-            c3.metric("Status do Cap", "⚠️ Risco de Capped", delta="-Estouro do tempo", delta_color="inverse")
-        else:
-            c3.metric("Status do Cap", "✅ Dentro do Cap")
-            
-    else: # AMRAP
-        amrap_seconds = amrap_minutes * 60
-        rounds_completed = amrap_seconds / round_time_total
-        full_rounds = int(rounds_completed)
-        fraction_round = rounds_completed - full_rounds
-        extra_reps = int(fraction_round * sum([m["reps"] for m in mov_inputs]))
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Estimativa de Score", f"{full_rounds} rounds + {extra_reps} reps")
-        c2.metric("Tempo Médio por Rodada", f"{int(round_time_total // 60):02d}:{int(round_time_total % 60):02d} min")
-        c3.metric("Ritmo Sugerido", f"{round_time_total / 60:.1f} min / round")
+        tot = rt * num_rounds
+        st.metric("Tempo Total", f"{int(tot//60)}:{int(tot%60):02d}")
+    else:
+        rnds = (amrap_minutes * 60) / rt
+        st.metric("Estimativa", f"{int(rnds)} rounds + {int((rnds-int(rnds))*sum(m['reps'] for m in mov_inputs))} reps")
+    
+    st.success("💡 Estratégia")
+    for b in bk:
+        st.write(f"- {b[0]}: {b[1]} sets{' (⚠️ Fadiga detectada)' if b[2] else ''}")
 
     st.markdown("---")
     st.success("💡 **Análise Tática e Estratégia de Quebra:**")
