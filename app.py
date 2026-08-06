@@ -176,11 +176,33 @@ if st.button("🚀 Calcular", use_container_width=True, type="primary"):
         st.write(f"- {b[0]}: {b[1]} sets{' (⚠️ Fadiga detectada)' if b[2] else ''}")
 
     st.markdown("---")
-    st.success("💡 **Análise Tática e Estratégia de Quebra:**")
-    for b in breakdowns:
-        penalty_str = " *(⚠️ +25% de fadiga por interferência com movimento anterior)*" if b["penalty"] else ""
-        if b["sets"] > 1:
-            st.write(f"- **{b['name']}:** Faça em **{b['sets']} sets** com descanso de ~{int(b['rest'])}s entre eles.{penalty_str}")
-        else:
-            st.write(f"- **{b['name']}:** Mantenha ritmo constante (unbroken/pace contínuo).{penalty_str}")
+        # ---------------------------------------------------------
+    # ANÁLISE TÁTICA E ESTRATÉGIA DE QUEBRA DETALHADA
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("💡 Análise Tática e Estratégia de Quebra")
 
+    for b in breakdowns:
+        name = b["name"]
+        sets = b["sets"]
+        rest = b["rest"]
+        penalty = b["penalty"]
+        reps = next(m["reps"] for m in mov_inputs if m["name"] == name)
+
+        # Cálculo das repetições por conjunto
+        base_reps = reps // sets
+        rem_reps = reps % sets
+
+        # Construção da sugestão de sets (ex: "10 - 10 - 10" ou "10 - 10 - 5")
+        if sets > 1:
+            set_list = [base_reps + (1 if i < rem_reps else 0) for i in range(sets)]
+            set_str = " - ".join(map(str, set_list))
+            
+            msg = f"**{name}** ({reps} reps): Divida em **{sets} sets** (`{set_str}`). Descanso sugerido: **{int(rest)}s** entre cada set."
+        else:
+            msg = f"**{name}** ({reps} reps): Faça **unbroken** (set único) mantendo ritmo constante."
+
+        if penalty:
+            st.warning(f"⚠️ {msg}\n\n*Atenção: Este movimento sofre interferência de fadiga local devido ao exercício anterior. Adicione +3s a +5s no descanso entre os sets.*")
+        else:
+            st.info(f"✅ {msg}")
