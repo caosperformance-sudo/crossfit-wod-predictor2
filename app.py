@@ -1,18 +1,15 @@
 import streamlit as st
 import math
 
-import streamlit as st
-import math
-
-# 1. Configuração da página (Verifique se todos os parênteses estão fechados)
+# 1. Configuração da página (Compatível com PC e Celular)
 st.set_page_config(
     page_title="CrossFit WOD Predictor PRO", 
     page_icon="🏋️", 
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
-# 2. Oculta menus desnecessários
+# 2. Oculta menus desnecessários mantendo a interface limpa
 custom_css = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -25,83 +22,52 @@ st.markdown(custom_css, unsafe_allow_html=True)
 st.title("🏋️ CrossFit WOD Time Predictor PRO")
 st.caption("Estimador avançado de tempo, ritmo e rounds considerando degradação muscular e interferência neuromuscular.")
 
-# 3. Atalho expansível para telas pequenas
-with st.expander("⚙️ **Configurar 1RM e Reps Máximas (Clique para abrir no celular)**", expanded=False):
-    st.info("💡 As métricas de força e ginásticos também podem ser editadas na barra lateral.")
+# ---------------------------------------------------------
+# PERFIL DO ATLETA (TELA PRINCIPAL - FUNCIONA EM PC E CELULAR)
+# ---------------------------------------------------------
+with st.expander("👤 **CONFIGURAR SEU PERFIL (1RM & REPS MÁXIMAS)**", expanded=True):
+    st.markdown("### 🏋️ Força Máxima (1RM em kg)")
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        rm_thruster = st.number_input("Thruster", min_value=1.0, value=80.0, step=2.5)
+        rm_deadlift = st.number_input("Deadlift", min_value=1.0, value=140.0, step=5.0)
+        rm_bsquat = st.number_input("Back Squat", min_value=1.0, value=120.0, step=2.5)
+        rm_fsquat = st.number_input("Front Squat", min_value=1.0, value=100.0, step=2.5)
+        rm_ohs = st.number_input("Overhead Squat", min_value=1.0, value=75.0, step=2.5)
+    with col_s2:
+        rm_cj = st.number_input("Clean & Jerk", min_value=1.0, value=90.0, step=2.5)
+        rm_snatch = st.number_input("Snatch", min_value=1.0, value=70.0, step=2.5)
+        rm_pclean = st.number_input("Power Clean", min_value=1.0, value=85.0, step=2.5)
+        rm_ppress = st.number_input("Push Press", min_value=1.0, value=75.0, step=2.5)
 
+    st.markdown("---")
+    st.markdown("### 🤸 Capacidade Ginástica (Max Unbroken)")
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        max_pullups = st.number_input("Pull-ups", min_value=1, value=25)
+        max_c2b = st.number_input("Chest to Bar", min_value=1, value=18)
+        max_bmu = st.number_input("Bar Muscle-ups", min_value=1, value=8)
+        max_rmu = st.number_input("Ring Muscle-ups", min_value=1, value=6)
+        max_ttb = st.number_input("Toes to Bar", min_value=1, value=20)
+    with col_g2:
+        max_hspu = st.number_input("HSPU", min_value=1, value=15)
+        max_hsw = st.number_input("HS Walk (m)", min_value=1, value=15)
+        max_rope = st.number_input("Rope Climb", min_value=1, value=4)
+        max_pistols = st.number_input("Pistols (cada perna)", min_value=1, value=15)
+
+    st.markdown("---")
+    st.markdown("### 🏃 Ergômetros e Pace")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        pace_burpee = st.number_input("Seg/Burpee", min_value=1.0, value=3.0, step=0.1)
+        pace_run = st.number_input("Pace Corrida (seg / 100m)", min_value=10.0, value=25.0, step=1.0)
+        pace_du = st.number_input("Seg / 10 Double Unders", min_value=1.0, value=6.0, step=0.5)
+    with col_c2:
+        pace_row = st.number_input("Pace Remo/Ski (seg / 100m ou 10cal)", min_value=10.0, value=22.0, step=1.0)
+        pace_bike = st.number_input("Pace Bike (seg / 10cal)", min_value=5.0, value=18.0, step=1.0)
 
 # ---------------------------------------------------------
-# AUTENTICAÇÃO / CONTROLE DE ACESSO
-# ---------------------------------------------------------
-def checar_senha():
-    def senha_digitada():
-        if st.session_state["password_input"] == "wodpredictor":  # <--- Defina sua senha aqui
-            st.session_state["authenticated"] = True
-            del st.session_state["password_input"]
-        else:
-            st.session_state["authenticated"] = False
-
-    if "authenticated" not in st.session_state:
-        st.text_input("🔑 Digite a senha para acessar o app:", type="password", on_change=senha_digitada, key="password_input")
-        return False
-    elif not st.session_state["authenticated"]:
-        st.text_input("🔑 Senha incorreta. Tente novamente:", type="password", on_change=senha_digitada, key="password_input")
-        return False
-    else:
-        return True
-
-# Interrompe a execução do código se a senha não estiver correta
-if not checar_senha():
-    st.stop()
-
-# ---------------------------------------------------------
-# O RESTANTE DO SEU CÓDIGO DO APP VEM AQUI ABAIXO...
-# ---------------------------------------------------------
-
-
-st.title("🏋️ CrossFit WOD Time Predictor PRO")
-st.caption("Estimador avançado de tempo, ritmo e rounds considerando degradacao muscular e interferencia neuromuscular.")
-
-# ---------------------------------------------------------
-# SIDEBAR: PERFIL DO ATLETA (1RM & DADOS GINÁSTICOS/CARDIOS)
-# ---------------------------------------------------------
-st.sidebar.header("👤 Perfil de Força (1RM em kg)")
-col_s1, col_s2 = st.sidebar.columns(2)
-with col_s1:
-    rm_thruster = st.number_input("Thruster", min_value=1.0, value=80.0, step=2.5)
-    rm_deadlift = st.number_input("Deadlift", min_value=1.0, value=140.0, step=5.0)
-    rm_bsquat = st.number_input("Back Squat", min_value=1.0, value=120.0, step=2.5)
-    rm_fsquat = st.number_input("Front Squat", min_value=1.0, value=100.0, step=2.5)
-    rm_ohs = st.number_input("Overhead Squat", min_value=1.0, value=75.0, step=2.5)
-with col_s2:
-    rm_cj = st.number_input("Clean & Jerk", min_value=1.0, value=90.0, step=2.5)
-    rm_snatch = st.number_input("Snatch", min_value=1.0, value=70.0, step=2.5)
-    rm_pclean = st.number_input("Power Clean", min_value=1.0, value=85.0, step=2.5)
-    rm_ppress = st.number_input("Push Press", min_value=1.0, value=75.0, step=2.5)
-
-st.sidebar.header("🤸 Capacidade Ginástica (Max Unbroken)")
-col_g1, col_g2 = st.sidebar.columns(2)
-with col_g1:
-    max_pullups = st.number_input("Pull-ups", min_value=1, value=25)
-    max_c2b = st.number_input("Chest to Bar", min_value=1, value=18)
-    max_bmu = st.number_input("Bar Muscle-ups", min_value=1, value=8)
-    max_rmu = st.number_input("Ring Muscle-ups", min_value=1, value=6)
-    max_ttb = st.number_input("Toes to Bar", min_value=1, value=20)
-with col_g2:
-    max_hspu = st.number_input("HSPU", min_value=1, value=15)
-    max_hsw = st.number_input("HS Walk (metros)", min_value=1, value=15)
-    max_rope = st.number_input("Rope Climb (reps)", min_value=1, value=4)
-    max_pistols = st.number_input("Pistols (por perna)", min_value=1, value=15)
-
-st.sidebar.header("🏃 Paces de Ergômetros e Cardios")
-pace_burpee = st.sidebar.number_input("Segundos por Burpee", min_value=1.0, value=3.0, step=0.1)
-pace_run = st.sidebar.number_input("Pace Corrida (seg / 100m)", min_value=10.0, value=25.0, step=1.0)
-pace_row = st.sidebar.number_input("Pace Remo/Ski (seg / 100m ou 10cal)", min_value=10.0, value=22.0, step=1.0)
-pace_bike = st.sidebar.number_input("Pace Echo/BikeErg (seg / 10cal)", min_value=5.0, value=18.0, step=1.0)
-pace_du = st.sidebar.number_input("Segundos por 10 Double Unders", min_value=1.0, value=6.0, step=0.5)
-
-# ---------------------------------------------------------
-# DATABASE DE EXERCÍCIOS E METADADOS
+# DATABASE DE EXERCÍCIOS
 # ---------------------------------------------------------
 EXERCISES = {
     # LPO / Barbell
@@ -138,7 +104,7 @@ EXERCISES = {
 st.divider()
 
 # ---------------------------------------------------------
-# CONFIGURAÇÃO DO WOD (FOR TIME OU AMRAP + ATÉ 5 MOVIMENTOS)
+# ESTRUTURA DO WOD
 # ---------------------------------------------------------
 st.header("📋 Estrutura do WOD")
 
@@ -174,7 +140,7 @@ for i in range(num_movements):
         mov_inputs.append({"name": ex_name, "reps": reps, "load": load})
 
 # ---------------------------------------------------------
-# FUNÇÃO DE CÁLCULO INDIVIDUAL E INTERFERÊNCIA
+# FUNÇÃO DE CÁLCULO
 # ---------------------------------------------------------
 def calcular_tempo_movimento(name, reps, load, rm_dict, max_dict, pace_dict):
     info = EXERCISES[name]
@@ -197,13 +163,9 @@ def calcular_tempo_movimento(name, reps, load, rm_dict, max_dict, pace_dict):
         
     else: # cardio
         p_val = pace_dict.get(info["pace_key"], 3.0)
-        if name == "Corrida (m)":
+        if name in ["Corrida (m)", "Remo (m/cal)", "SkiErg (m/cal)"]:
             tpr = p_val / 100.0
-        elif name in ["Remo (m/cal)", "SkiErg (m/cal)"]:
-            tpr = p_val / 100.0
-        elif name == "Echo / BikeErg (cal)":
-            tpr = p_val / 10.0
-        elif name == "Double Unders":
+        elif name in ["Echo / BikeErg (cal)", "Double Unders"]:
             tpr = p_val / 10.0
         else:
             tpr = p_val
@@ -217,9 +179,6 @@ def calcular_tempo_movimento(name, reps, load, rm_dict, max_dict, pace_dict):
 
 st.markdown("---")
 
-# ---------------------------------------------------------
-# BOTÃO DE EXECUÇÃO E LÓGICA PRINCIPAL
-# ---------------------------------------------------------
 if st.button("🚀 Calcular Estimativa de Desempenho", use_container_width=True, type="primary"):
     
     rm_dict = {
@@ -240,16 +199,14 @@ if st.button("🚀 Calcular Estimativa de Desempenho", use_container_width=True,
     patterns = []
     breakdowns = []
     
-    # Processa cada movimento da rodada
     for idx, mov in enumerate(mov_inputs):
         t_mov, sets, rest, pattern = calcular_tempo_movimento(
             mov["name"], mov["reps"], mov["load"], rm_dict, max_dict, pace_dict
         )
         
-        # Penalidade por interferência neuromuscular (se o padrão do movimento for igual ao anterior)
         interference_penalty = 1.0
         if idx > 0 and (pattern in patterns[-1] or patterns[-1] in pattern):
-            interference_penalty = 1.25 # 25% a mais de tempo por fadiga muscular local
+            interference_penalty = 1.25
             
         t_mov_final = t_mov * interference_penalty
         round_time_raw += t_mov_final
@@ -263,7 +220,6 @@ if st.button("🚀 Calcular Estimativa de Desempenho", use_container_width=True,
             "penalty": interference_penalty > 1.0
         })
         
-    # Transição entre estações (5 segundos por transição)
     transitions_time = num_movements * 5.0
     round_time_total = round_time_raw + transitions_time
     
@@ -296,7 +252,6 @@ if st.button("🚀 Calcular Estimativa de Desempenho", use_container_width=True,
         c2.metric("Tempo Médio por Rodada", f"{int(round_time_total // 60):02d}:{int(round_time_total % 60):02d} min")
         c3.metric("Ritmo Sugerido", f"{round_time_total / 60:.1f} min / round")
 
-    # Estratégia Recomendada
     st.markdown("---")
     st.success("💡 **Análise Tática e Estratégia de Quebra:**")
     for b in breakdowns:
@@ -305,3 +260,4 @@ if st.button("🚀 Calcular Estimativa de Desempenho", use_container_width=True,
             st.write(f"- **{b['name']}:** Faça em **{b['sets']} sets** com descanso de ~{int(b['rest'])}s entre eles.{penalty_str}")
         else:
             st.write(f"- **{b['name']}:** Mantenha ritmo constante (unbroken/pace contínuo).{penalty_str}")
+
