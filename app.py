@@ -2,6 +2,39 @@ import streamlit as st
 import math
 
 st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
+import streamlit as st
+
+# Configuração da página
+st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
+
+# ---------------------------------------------------------
+# AUTENTICAÇÃO / CONTROLE DE ACESSO
+# ---------------------------------------------------------
+def checar_senha():
+    def senha_digitada():
+        if st.session_state["password_input"] == "SUA_SENHA_AQUI":  # <--- Defina sua senha aqui
+            st.session_state["authenticated"] = True
+            del st.session_state["password_input"]
+        else:
+            st.session_state["authenticated"] = False
+
+    if "authenticated" not in st.session_state:
+        st.text_input("🔑 Digite a senha para acessar o app:", type="password", on_change=senha_digitada, key="password_input")
+        return False
+    elif not st.session_state["authenticated"]:
+        st.text_input("🔑 Senha incorreta. Tente novamente:", type="password", on_change=senha_digitada, key="password_input")
+        return False
+    else:
+        return True
+
+# Interrompe a execução do código se a senha não estiver correta
+if not checar_senha():
+    st.stop()
+
+# ---------------------------------------------------------
+# O RESTANTE DO SEU CÓDIGO DO APP VEM AQUI ABAIXO...
+# ---------------------------------------------------------
+
 
 st.title("🏋️ CrossFit WOD Time Predictor PRO")
 st.caption("Estimador avançado de tempo, ritmo e rounds considerando degradacao muscular e interferencia neuromuscular.")
