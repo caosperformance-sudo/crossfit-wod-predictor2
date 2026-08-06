@@ -2,22 +2,25 @@ import streamlit as st
 import math
 
 st.set_page_config(page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide")
-import streamlit as st
-
-st.set_page_config(
-    page_title="CrossFit WOD Predictor PRO", page_icon="🏋️", layout="wide"
-)
-
 # ---------------------------------------------------------
-# OCULTAR ELEMENTOS DA INTERFACE (MENU, FOOTER E BARRA SUPERIOR)
+# OCULTAR APENAS O MENU SUPERIOR E MANTER A SETA LATERAL VISÍVEL
 # ---------------------------------------------------------
 hide_streamlit_style = """
     <style>
+    /* Esconde o menu de 3 pontos do topo direito */
     #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    [data-testid="stHeader"] {visibility: hidden;}
+    
+    /* Esconde a barra de ferramentas/gerenciamento do Streamlit */
     [data-testid="stToolbar"] {visibility: hidden;}
+    
+    /* Esconde o rodapé padrão */
+    footer {visibility: hidden;}
+    
+    /* Garante que o botão da seta da sidebar (menu esquerdo) continue visível no celular */
+    [data-testid="stSidebarCollapseButton"] {
+        visibility: visible !important;
+        display: block !important;
+    }
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
