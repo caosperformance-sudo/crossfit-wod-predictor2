@@ -1,5 +1,2 @@
 streamlit
-opencv-python-headless
-protobuf==3.20.3
-mediapipe
 numpy
