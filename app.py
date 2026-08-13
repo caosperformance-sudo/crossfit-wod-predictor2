@@ -3,7 +3,7 @@ import math
 
 # 1. Configuração da página
 st.set_page_config(
-    page_title="CrossFit WOD Predictor PRO", 
+    page_title="CrossFit WOD Predictor PRO - Multi-WOD & Fatigue Engine", 
     page_icon="🏋️", 
     layout="wide",
     initial_sidebar_state="auto"
@@ -11,7 +11,7 @@ st.set_page_config(
 
 # 2. Lógica de Autenticação
 def checar_senha():
-    SENHA_CORRETA = "wodpredict"  # <--- Altere para a sua senha
+    SENHA_CORRETA = "SUA_SENHA_AQUI"  # <--- Altere para a sua senha
 
     def senha_digitada():
         if st.session_state["password_input"] == SENHA_CORRETA:
@@ -32,7 +32,7 @@ def checar_senha():
 if not checar_senha():
     st.stop()
 
-# 3. CSS de limpeza
+# 3. CSS Customizado
 custom_css = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -42,7 +42,7 @@ custom_css = """
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
-# 4. Funções utilitárias de RM
+# 4. Funções Utilitárias de RM
 def calcular_rm_lpo(carga, reps):
     if reps == 1:
         rm1 = carga
@@ -55,205 +55,253 @@ def calcular_rm_lpo(carga, reps):
         1: 1.00, 2: 0.95, 3: 0.93, 4: 0.90, 5: 0.87,
         6: 0.85, 7: 0.83, 8: 0.80, 9: 0.77, 10: 0.75
     }
-    
     tabela = {f"{r}RM": round(rm1 * pct, 1) for r, pct in percentuais.items()}
     return round(rm1, 1), tabela
 
 def calcular_rm_gym_com_carga(peso_corpo, carga_extra, reps):
     peso_total = peso_corpo + carga_extra
-    if reps == 1:
-        total_1rm = peso_total
-    else:
-        total_1rm = peso_total * (1 + reps / 30)
-    
+    total_1rm = peso_total if reps == 1 else peso_total * (1 + reps / 30)
     carga_extra_1rm = max(0.0, total_1rm - peso_corpo)
-    
-    # Estimativa de repetições máximas com peso corporal limpo
-    if total_1rm > peso_corpo:
-        reps_bw = int((total_1rm / peso_corpo - 1) * 30)
-    else:
-        reps_bw = reps
-        
+    reps_bw = int((total_1rm / peso_corpo - 1) * 30) if total_1rm > peso_corpo else reps
     return round(carga_extra_1rm, 1), round(total_1rm, 1), max(reps, reps_bw)
 
-# 5. Interface Principal com Abas
-st.title("🏋️ CrossFit WOD Predictor & Performance PRO")
+# 5. Dicionário Expansível de Exercícios
+EXERCISES = {
+    "Thruster": {"type": "lpo", "rm_key": "thruster", "tpr": 2.2, "pattern": "push_legs", "grip_stress": 2},
+    "Deadlift": {"type": "lpo", "rm_key": "deadlift", "tpr": 2.0, "pattern": "pull_posterior", "grip_stress": 3},
+    "Back Squat": {"type": "lpo", "rm_key": "bsquat", "tpr": 2.3, "pattern": "legs", "grip_stress": 1},
+    "Front Squat": {"type": "lpo", "rm_key": "fsquat", "tpr": 2.2, "pattern": "legs", "grip_stress": 1},
+    "Overhead Squat": {"type": "lpo", "rm_key": "ohs", "tpr": 2.4, "pattern": "push_legs", "grip_stress": 2},
+    "Clean & Jerk": {"type": "lpo", "rm_key": "cj", "tpr": 3.2, "pattern": "full_body", "grip_stress": 3},
+    "Snatch": {"type": "lpo", "rm_key": "snatch", "tpr": 2.8, "pattern": "full_body", "grip_stress": 3},
+    "Power Clean": {"type": "lpo", "rm_key": "pclean", "tpr": 2.1, "pattern": "pull_posterior", "grip_stress": 3},
+    "Push Press": {"type": "lpo", "rm_key": "ppress", "tpr": 1.9, "pattern": "push", "grip_stress": 1},
+    "Dumbbell Snatch": {"type": "lpo", "rm_key": "snatch", "tpr": 2.2, "pattern": "full_body", "grip_stress": 2},
+    "Pull-up": {"type": "gym", "max_key": "pullups", "tpr": 1.4, "pattern": "pull_upper", "grip_stress": 3},
+    "Chest to Bar": {"type": "gym", "max_key": "c2b", "tpr": 1.6, "pattern": "pull_upper", "grip_stress": 3},
+    "Bar Muscle-up": {"type": "gym", "max_key": "bmu", "tpr": 3.0, "pattern": "pull_push_upper", "grip_stress": 3},
+    "Ring Muscle-up": {"type": "gym", "max_key": "rmu", "tpr": 3.5, "pattern": "pull_push_upper", "grip_stress": 3},
+    "Toes to Bar": {"type": "gym", "max_key": "ttb", "tpr": 1.6, "pattern": "pull_core", "grip_stress": 3},
+    "HSPU": {"type": "gym", "max_key": "hspu", "tpr": 2.0, "pattern": "push", "grip_stress": 0},
+    "Handstand Walk (m)": {"type": "gym", "max_key": "hsw", "tpr": 0.8, "pattern": "push_shoulders", "grip_stress": 1},
+    "Rope Climb": {"type": "gym", "max_key": "rope", "tpr": 7.0, "pattern": "pull_upper", "grip_stress": 4},
+    "Pistols": {"type": "gym", "max_key": "pistols", "tpr": 2.0, "pattern": "legs", "grip_stress": 0},
+    "Burpee": {"type": "cardio", "pace_key": "burpee", "tpr": 3.0, "pattern": "push_engine", "grip_stress": 0},
+    "Corrida (m)": {"type": "cardio", "pace_key": "run", "tpr": 0.25, "pattern": "legs_engine", "grip_stress": 0},
+    "Remo (m/cal)": {"type": "cardio", "pace_key": "row", "tpr": 0.22, "pattern": "pull_engine", "grip_stress": 2},
+    "Echo / BikeErg (cal)": {"type": "cardio", "pace_key": "bike", "tpr": 1.8, "pattern": "legs_engine", "grip_stress": 0},
+    "Double Unders": {"type": "cardio", "pace_key": "du", "tpr": 0.6, "pattern": "engine_shoulders", "grip_stress": 2}
+}
 
-aba_wod, aba_rm = st.tabs(["⏱️ Preditor de Tempo de WOD", "📊 Preditor de RM (LPO & Ginástica)"])
+# 6. Estrutura Principal
+st.title("🏋️ CrossFit WOD Predictor & Multi-WOD Fatigue Engine PRO")
 
-# ==================== ABA 1: PREDIÇÃO DE WOD ====================
+aba_wod, aba_rm = st.tabs(["⏱️ Simulação Multi-WOD & Pacing", "📊 Preditor de RM (LPO & Ginástica)"])
+
+# ==================== ABA 1: SIMULAÇÃO MULTI-WOD ====================
 with aba_wod:
-    with st.expander("👤 **CONFIGURAR SEU PERFIL (1RM & REPS MÁXIMAS)**", expanded=True):
-        st.markdown("### 🏋️ Força Máxima (1RM em kg)")
-        c1, c2 = st.columns(2)
+    with st.expander("👤 **PERFIL DO ATLETA & RPE ALVO**", expanded=False):
+        c1, c2, c3 = st.columns(3)
         with c1:
-            rm_thruster = st.number_input("Thruster", min_value=1.0, value=80.0, step=2.5)
-            rm_deadlift = st.number_input("Deadlift", min_value=1.0, value=140.0, step=5.0)
-            rm_bsquat = st.number_input("Back Squat", min_value=1.0, value=120.0, step=2.5)
-            rm_fsquat = st.number_input("Front Squat", min_value=1.0, value=100.0, step=2.5)
-            rm_ohs = st.number_input("Overhead Squat", min_value=1.0, value=75.0, step=2.5)
+            st.markdown("#### 🏋️ 1RM (kg)")
+            rm_thruster = st.number_input("Thruster", value=80.0, step=2.5)
+            rm_deadlift = st.number_input("Deadlift", value=140.0, step=5.0)
+            rm_bsquat = st.number_input("Back Squat", value=120.0, step=2.5)
+            rm_fsquat = st.number_input("Front Squat", value=100.0, step=2.5)
+            rm_ohs = st.number_input("Overhead Squat", value=75.0, step=2.5)
+            rm_cj = st.number_input("Clean & Jerk", value=90.0, step=2.5)
+            rm_snatch = st.number_input("Snatch", value=70.0, step=2.5)
+            rm_pclean = st.number_input("Power Clean", value=85.0, step=2.5)
+            rm_ppress = st.number_input("Push Press", value=75.0, step=2.5)
         with c2:
-            rm_cj = st.number_input("Clean & Jerk", min_value=1.0, value=90.0, step=2.5)
-            rm_snatch = st.number_input("Snatch", min_value=1.0, value=70.0, step=2.5)
-            rm_pclean = st.number_input("Power Clean", min_value=1.0, value=85.0, step=2.5)
-            rm_ppress = st.number_input("Push Press", min_value=1.0, value=75.0, step=2.5)
-
-        st.markdown("### 🤸 Capacidade Ginástica (Max Unbroken)")
-        c3, c4 = st.columns(2)
+            st.markdown("#### 🤸 Ginástica (Max Unbroken)")
+            max_pullups = st.number_input("Pull-ups", value=25)
+            max_c2b = st.number_input("Chest to Bar", value=18)
+            max_bmu = st.number_input("Bar Muscle-ups", value=8)
+            max_rmu = st.number_input("Ring Muscle-ups", value=6)
+            max_ttb = st.number_input("Toes to Bar", value=20)
+            max_hspu = st.number_input("HSPU", value=15)
+            max_hsw = st.number_input("HS Walk (m)", value=15)
+            max_rope = st.number_input("Rope Climb", value=4)
+            max_pistols = st.number_input("Pistols", value=15)
         with c3:
-            max_pullups = st.number_input("Pull-ups", min_value=1, value=25)
-            max_c2b = st.number_input("Chest to Bar", min_value=1, value=18)
-            max_bmu = st.number_input("Bar Muscle-ups", min_value=1, value=8)
-            max_rmu = st.number_input("Ring Muscle-ups", min_value=1, value=6)
-            max_ttb = st.number_input("Toes to Bar", min_value=1, value=20)
-        with c4:
-            max_hspu = st.number_input("HSPU", min_value=1, value=15)
-            max_hsw = st.number_input("HS Walk (m)", min_value=1, value=15)
-            max_rope = st.number_input("Rope Climb", min_value=1, value=4)
-            max_pistols = st.number_input("Pistols (cada perna)", min_value=1, value=15)
+            st.markdown("#### 🏃 Ergômetros & RPE")
+            pace_burpee = st.number_input("Seg/Burpee", value=3.0, step=0.1)
+            pace_run = st.number_input("Pace Corrida (seg / 100m)", value=25.0, step=1.0)
+            pace_row = st.number_input("Pace Remo (seg / 100m)", value=22.0, step=1.0)
+            pace_bike = st.number_input("Pace Bike (seg / 10cal)", value=18.0, step=1.0)
+            pace_du = st.number_input("Seg / 10 DU", value=6.0, step=0.5)
+            rpe_target = st.select_slider("🎯 RPE Alvo do Evento (Percepção de Esforço)", options=[6, 7, 8, 9, 10], value=8)
 
-        st.markdown("### 🏃 Ergômetros e Pace")
-        c5, c6 = st.columns(2)
-        with c5:
-            pace_burpee = st.number_input("Seg/Burpee", min_value=1.0, value=3.0, step=0.1)
-            pace_run = st.number_input("Pace Corrida (seg / 100m)", min_value=10.0, value=25.0, step=1.0)
-        with c6:
-            pace_row = st.number_input("Pace Remo/Ski (seg / 100m ou 10cal)", min_value=10.0, value=22.0, step=1.0)
-            pace_bike = st.number_input("Pace Bike (seg / 10cal)", min_value=5.0, value=18.0, step=1.0)
-            pace_du = st.number_input("Seg / 10 Double Unders", min_value=1.0, value=6.0, step=0.5)
+    r_d = {'thruster': rm_thruster, 'deadlift': rm_deadlift, 'bsquat': rm_bsquat, 'fsquat': rm_fsquat, 'ohs': rm_ohs, 'cj': rm_cj, 'snatch': rm_snatch, 'pclean': rm_pclean, 'ppress': rm_ppress}
+    m_d = {'pullups': max_pullups, 'c2b': max_c2b, 'bmu': max_bmu, 'rmu': max_rmu, 'ttb': max_ttb, 'hspu': max_hspu, 'hsw': max_hsw, 'rope': max_rope, 'pistols': max_pistols}
+    p_d = {'burpee': pace_burpee, 'run': pace_run, 'row': pace_row, 'bike': pace_bike, 'du': pace_du}
 
-    EXERCISES = {
-        "Thruster": {"type": "lpo", "rm_key": "thruster", "tpr": 2.2, "pattern": "push_legs"},
-        "Deadlift": {"type": "lpo", "rm_key": "deadlift", "tpr": 2.0, "pattern": "pull_posterior"},
-        "Back Squat": {"type": "lpo", "rm_key": "bsquat", "tpr": 2.3, "pattern": "legs"},
-        "Front Squat": {"type": "lpo", "rm_key": "fsquat", "tpr": 2.2, "pattern": "legs"},
-        "Overhead Squat": {"type": "lpo", "rm_key": "ohs", "tpr": 2.4, "pattern": "push_legs"},
-        "Clean & Jerk": {"type": "lpo", "rm_key": "cj", "tpr": 3.2, "pattern": "full_body"},
-        "Snatch": {"type": "lpo", "rm_key": "snatch", "tpr": 2.8, "pattern": "full_body"},
-        "Power Clean": {"type": "lpo", "rm_key": "pclean", "tpr": 2.1, "pattern": "pull_posterior"},
-        "Push Press": {"type": "lpo", "rm_key": "ppress", "tpr": 1.9, "pattern": "push"},
-        "Pull-up": {"type": "gym", "max_key": "pullups", "tpr": 1.4, "pattern": "pull_upper"},
-        "Chest to Bar": {"type": "gym", "max_key": "c2b", "tpr": 1.6, "pattern": "pull_upper"},
-        "Bar Muscle-up": {"type": "gym", "max_key": "bmu", "tpr": 3.0, "pattern": "pull_push_upper"},
-        "Ring Muscle-up": {"type": "gym", "max_key": "rmu", "tpr": 3.5, "pattern": "pull_push_upper"},
-        "Toes to Bar": {"type": "gym", "max_key": "ttb", "tpr": 1.6, "pattern": "pull_core"},
-        "HSPU": {"type": "gym", "max_key": "hspu", "tpr": 2.0, "pattern": "push"},
-        "Handstand Walk (m)": {"type": "gym", "max_key": "hsw", "tpr": 0.8, "pattern": "push_shoulders"},
-        "Rope Climb": {"type": "gym", "max_key": "rope", "tpr": 7.0, "pattern": "pull_upper"},
-        "Pistols": {"type": "gym", "max_key": "pistols", "tpr": 2.0, "pattern": "legs"},
-        "Burpee": {"type": "cardio", "pace_key": "burpee", "tpr": 3.0, "pattern": "push_engine"},
-        "Corrida (m)": {"type": "cardio", "pace_key": "run", "tpr": 0.25, "pattern": "legs_engine"},
-        "Remo (m/cal)": {"type": "cardio", "pace_key": "row", "tpr": 0.22, "pattern": "pull_engine"},
-        "Echo / BikeErg (cal)": {"type": "cardio", "pace_key": "bike", "tpr": 1.8, "pattern": "legs_engine"},
-        "Double Unders": {"type": "cardio", "pace_key": "du", "tpr": 0.6, "pattern": "engine_shoulders"}
-    }
+    # Fator de RPE (Ajusta velocidade e recuperação sugerida)
+    rpe_mult = {6: 1.20, 7: 1.12, 8: 1.05, 9: 1.00, 10: 0.95}[rpe_target]
 
-    st.divider()
-    st.header("📋 Estrutura do WOD")
-    c_format, c_config = st.columns(2)
-    with c_format:
-        wod_format = st.selectbox("Formato", ["For Time", "AMRAP"])
-    with c_config:
-        if wod_format == "For Time":
-            num_rounds = st.number_input("Rodadas", min_value=1, value=3)
-            time_cap = st.number_input("Time Cap (min)", min_value=0, value=15)
-        else:
-            amrap_minutes = st.number_input("Minutos", min_value=1, value=12)
+    num_wods = st.radio("Selecione a Quantidade de WODs na Sessão / Competição:", [1, 2, 3], horizontal=True)
 
-    num_movements = st.slider("Qtd Movimentos", 1, 5, 2)
-    mov_inputs = []
-    cols = st.columns(num_movements)
-    for i in range(num_movements):
-        with cols[i]:
-            ex_name = st.selectbox(f"Mov {i+1}", sorted(list(EXERCISES.keys())), key=f"ex_{i}")
-            reps = st.number_input(f"Reps {i+1}", min_value=1, value=15, key=f"reps_{i}")
-            load = st.number_input(f"Carga (kg)", min_value=0.0, value=40.0, key=f"load_{i}") if EXERCISES[ex_name]["type"] == "lpo" else 0.0
-            mov_inputs.append({"name": ex_name, "reps": reps, "load": load})
+    def gerar_estrategia_quebra(reps, sets):
+        if sets <= 1:
+            return f"**Unbroken** ({reps} reps diretas)"
+        
+        base = reps // sets
+        rem = reps % sets
+        
+        # Estratégia Front-Loading (Descendente) recomendada para evitar falha
+        set_list = [base + (1 if k < rem else 0) for k in range(sets)]
+        if len(set_list) >= 3 and set_list[0] == set_list[-1]:
+            # Ajusta levemente para descendente se possível
+            set_list[0] += 1
+            set_list[-1] -= 1
+        
+        set_str = " - ".join(map(str, set_list))
+        return f"Divida em **{sets} sets** (`{set_str}`) *[Estratégia Descendente]*"
 
-    def calc(name, reps, load, r_d, m_d, p_d):
+    def calc_movimento(name, reps, load, r_d, m_d, p_d, acumulado_fadiga_wod, acumulado_fadiga_sessao):
         info = EXERCISES[name]
+        grip_score = info["grip_stress"]
+        
+        # Fator de Fadiga Residual (Intra-WOD + Inter-WOD + RPE)
+        fator_fadiga = (1 + (acumulado_fadiga_wod * 0.04) + (acumulado_fadiga_sessao * 0.08)) * rpe_mult
+
         if info["type"] == "lpo":
             pct = load / r_d.get(info["rm_key"], 80.0)
-            tpr = info["tpr"] * (1 + (pct**2))
-            sets = math.ceil(reps / max(2, int(15 * (1 - pct))))
-            rest = 8 + (pct * 14)
+            tpr = info["tpr"] * (1 + (pct**2)) * fator_fadiga
+            sets = math.ceil(reps / max(2, int(15 * (1 - pct) / fator_fadiga)))
+            rest = (8 + (pct * 14)) * fator_fadiga
         elif info["type"] == "gym":
-            tpr = info["tpr"]
-            sets = math.ceil(reps / max(2, int(m_d.get(info["max_key"], 15) * 0.45)))
-            rest = 7.0
+            tpr = info["tpr"] * fator_fadiga
+            sets = math.ceil(reps / max(2, int(m_d.get(info["max_key"], 15) * 0.40 / fator_fadiga)))
+            rest = 7.0 * fator_fadiga
         else:
-            tpr = p_d.get(info["pace_key"], 3.0) / (100 if "m" in name else 10)
+            tpr = (p_d.get(info["pace_key"], 3.0) / (100 if "m" in name else 10)) * fator_fadiga
             sets, rest = 1, 0.0
-        return (reps * tpr) + ((sets - 1) * rest), sets, rest, info["pattern"]
 
-    if st.button("🚀 Calcular WOD", use_container_width=True, type="primary"):
-        r_d = {'thruster': rm_thruster, 'deadlift': rm_deadlift, 'bsquat': rm_bsquat, 'fsquat': rm_fsquat, 'ohs': rm_ohs, 'cj': rm_cj, 'snatch': rm_snatch, 'pclean': rm_pclean, 'ppress': rm_ppress}
-        m_d = {'pullups': max_pullups, 'c2b': max_c2b, 'bmu': max_bmu, 'rmu': max_rmu, 'ttb': max_ttb, 'hspu': max_hspu, 'hsw': max_hsw, 'rope': max_rope, 'pistols': max_pistols}
-        p_d = {'burpee': pace_burpee, 'run': pace_run, 'row': pace_row, 'bike': pace_bike, 'du': pace_du}
-        
-        rt, pats = 0.0, []
-        breakdowns = []
-        
-        for i, m in enumerate(mov_inputs):
-            t, s, rest_s, p = calc(m["name"], m["reps"], m["load"], r_d, m_d, p_d)
-            penalty = (i > 0 and (p in pats[-1] or pats[-1] in p))
-            pen_factor = 1.25 if penalty else 1.0
-            
-            rt += t * pen_factor
-            pats.append(p)
-            
-            breakdowns.append({
-                "name": m["name"],
-                "reps": m["reps"],
-                "sets": s,
-                "rest": rest_s + (5.0 if penalty else 0.0),
-                "penalty": penalty
-            })
-            
-        rt += num_movements * 5.0
-        
-        st.subheader("🎯 Resultado")
-        if wod_format == "For Time":
-            tot = rt * num_rounds
-            st.metric("Tempo Total Estimado", f"{int(tot//60)}:{int(tot%60):02d} min")
-        else:
-            rnds = (amrap_minutes * 60) / rt
-            full_r = int(rnds)
-            extra_reps = int((rnds - full_r) * sum(m['reps'] for m in mov_inputs))
-            st.metric("Estimativa de Score", f"{full_r} rounds + {extra_reps} reps")
-        
-        st.markdown("---")
-        st.subheader("💡 Análise Tática e Estratégia de Quebra")
+        tempo_total = (reps * tpr) + ((sets - 1) * rest)
+        return tempo_total, sets, rest, info["pattern"], grip_score
 
-        for b in breakdowns:
-            name = b["name"]
-            sets = b["sets"]
-            rest = b["rest"]
-            penalty = b["penalty"]
-            reps = b["reps"]
+    wods_data = []
+    fadiga_sessao_cumulativa = 0.0
 
-            base_reps = reps // sets
-            rem_reps = reps % sets
-
-            if sets > 1:
-                set_list = [base_reps + (1 if k < rem_reps else 0) for k in range(sets)]
-                set_str = " - ".join(map(str, set_list))
-                msg = f"**{name}** ({reps} reps): Divida em **{sets} sets** (`{set_str}`). Descanso sugerido: **{int(rest)}s** entre os sets."
+    for w_idx in range(num_wods):
+        st.divider()
+        st.header(f"🏋️ WOD {w_idx+1}")
+        
+        c_fmt, c_cfg = st.columns(2)
+        with c_fmt:
+            w_format = st.selectbox(f"Formato WOD {w_idx+1}", ["For Time", "AMRAP"], key=f"fmt_{w_idx}")
+        with c_cfg:
+            if w_format == "For Time":
+                rounds = st.number_input(f"Rodadas WOD {w_idx+1}", min_value=1, value=3, key=f"rnd_{w_idx}")
+                cap = st.number_input(f"Time Cap (min) WOD {w_idx+1}", min_value=0, value=15, key=f"cap_{w_idx}")
+                amrap_min = 0
             else:
-                msg = f"**{name}** ({reps} reps): Faça **unbroken** (set único) mantendo ritmo constante."
+                amrap_min = st.number_input(f"Duração AMRAP (min) WOD {w_idx+1}", min_value=1, value=12, key=f"amrap_{w_idx}")
+                rounds = 1
 
-            if penalty:
-                st.warning(f"⚠️ {msg}\n\n*Atenção: Fadiga muscular por interferência do movimento anterior. Adicione +5s de pausa.*")
-            else:
-                st.info(f"✅ {msg}")
+        n_movs = st.slider(f"Qtd de Movimentos WOD {w_idx+1}", 1, 10, 3, key=f"n_mov_{w_idx}")
+        
+        movs = []
+        cols = st.columns(min(n_movs, 5))
+        for m_i in range(n_movs):
+            col_target = cols[m_i % 5]
+            with col_target:
+                ex_name = st.selectbox(f"Mov {m_i+1}", sorted(list(EXERCISES.keys())), key=f"w{w_idx}_ex_{m_i}")
+                reps = st.number_input(f"Reps Mov {m_i+1}", min_value=1, value=15, key=f"w{w_idx}_rep_{m_i}")
+                load = st.number_input(f"Carga (kg)", min_value=0.0, value=40.0, key=f"w{w_idx}_load_{m_i}") if EXERCISES[ex_name]["type"] == "lpo" else 0.0
+                movs.append({"name": ex_name, "reps": reps, "load": load})
+        
+        wods_data.append({"format": w_format, "rounds": rounds, "amrap_min": amrap_min, "movs": movs})
 
-# ==================== ABA 2: PREDICTOR DE RM (LPO & GINÁSTICA) ====================
+    if st.button("🚀 CALCULAR ESTRATÉGIA COMPLETA DE SESSÃO", type="primary", use_container_width=True):
+        st.divider()
+        st.subheader("📊 ANÁLISE INTEGRADA E SIMULAÇÃO MULTI-WOD")
+
+        for w_i, w_data in enumerate(wods_data):
+            st.markdown(f"### 🏋️ Resultados e Tática: WOD {w_i+1}")
+            
+            rt_round = 0.0
+            grip_total_wod = 0
+            patterns = []
+            breakdowns = []
+            fadiga_wod_cumulativa = 0.0
+
+            for m_i, m in enumerate(w_data["movs"]):
+                tempo, sets, rest, pattern, grip = calc_movimento(
+                    m["name"], m["reps"], m["load"], r_d, m_d, p_d, 
+                    fadiga_wod_cumulativa, fadiga_sessao_cumulativa
+                )
+                
+                # Checagem de Interferência Muscular
+                penalty = (m_i > 0 and (pattern in patterns[-1] or patterns[-1] in pattern))
+                if penalty:
+                    tempo *= 1.20  # +20% no tempo do movimento por fadiga direta
+                    rest += 5.0
+
+                rt_round += tempo
+                grip_total_wod += grip * m["reps"]
+                patterns.append(pattern)
+                fadiga_wod_cumulativa += 0.5
+                
+                breakdowns.append({
+                    "name": m["name"],
+                    "reps": m["reps"],
+                    "sets": sets,
+                    "rest": rest,
+                    "penalty": penalty
+                })
+
+            # Adiciona a fadiga do WOD atual à sessão geral
+            fadiga_sessao_cumulativa += 1.5
+
+            # Cálculo Final do WOD
+            tempo_transicao = len(w_data["movs"]) * 4.0
+            rt_round += tempo_transicao
+            tempo_total_wod = rt_round * w_data["rounds"]
+
+            col_res1, col_res2 = st.columns(2)
+            with col_res1:
+                if w_data["format"] == "For Time":
+                    m_tot, s_tot = int(tempo_total_wod // 60), int(tempo_total_wod % 60)
+                    st.metric(f"⏱️ Tempo Estimado WOD {w_i+1}", f"{m_tot}:{s_tot:02d} min")
+                else:
+                    rnds = (w_data["amrap_min"] * 60) / rt_round
+                    full_r = int(rnds)
+                    extra_r = int((rnds - full_r) * sum(m['reps'] for m in w_data['movs']))
+                    st.metric(f"🎯 Score Estimado WOD {w_i+1}", f"{full_r} rounds + {extra_r} reps")
+            
+            with col_res2:
+                # Alertas de Grip Fatigue / Antebraço
+                if grip_total_wod > 80:
+                    st.error("🚨 **ALERTA CRÍTICO DE GRIP FATIGUE (ANTEBRAÇO):** Alto acúmulo de pegada neste WOD! Quebre as séries antes de chegar próximo à falha.")
+                elif grip_total_wod > 45:
+                    st.warning("⚠️ **Atenção ao Grip:** Desgaste moderado de pegada. Utilize magneśio e evite Unbroken.")
+                else:
+                    st.success("✅ **Grip Preservado:** Sem sobrecarga crítica na pegada.")
+
+            # Estratégia do WOD
+            with st.expander(f"💡 Ver Plano de Quebra e Pacing do WOD {w_i+1}", expanded=True):
+                for b in breakdowns:
+                    est_str = gerar_estrategia_quebra(b["reps"], b["sets"])
+                    msg = f"**{b['name']}** ({b['reps']} reps): {est_str}. Descanso sugerido: **{int(b['rest'])}s** entre sets."
+                    
+                    if b["penalty"]:
+                        st.warning(f"⚠️ {msg}\n\n*Aviso de Interferência: Movimento adjacente desgasta os mesmos grupos musculares.*")
+                    else:
+                        st.info(f"✅ {msg}")
+
+        if num_wods > 1:
+            st.divider()
+            st.markdown("### 🧬 Efeito Acumulado da Sessão / Competição")
+            st.info(f"O cálculo considerou o desgaste cumulativo entre WODs. O **WOD {num_wods}** teve um acréscimo de fadiga neuromuscular ajustado ao seu RPE **{rpe_target}**.")
+
+# ==================== ABA 2: PREDICTOR DE RM ====================
 with aba_rm:
     st.header("📊 Calculadora & Preditor de Rep Max")
-    
     sub_lpo, sub_gym = st.tabs(["🏋️ LPO & Barra Olímpica", "🤸 Ginástica & Peso Corporal"])
     
-    # --- SUB-ABA: LPO ---
     with sub_lpo:
         st.subheader("Estimativa de 1RM a 10RM (Cargas de LPO)")
         c_calc1, c_calc2 = st.columns(2)
@@ -276,10 +324,8 @@ with aba_rm:
             with cols_rm[col_idx]:
                 st.metric(label=rm_label, value=f"{val} kg")
 
-    # --- SUB-ABA: GINÁSTICA ---
     with sub_gym:
         st.subheader("🤸 Preditor Ginástico (Weighted & Fadiga)")
-        
         modo_gym = st.radio("Escolha o tipo de teste:", ["Com Carga Extra (Weighted)", "Fadiga em Sets Sucessivos (Bodyweight)"], horizontal=True)
         
         if modo_gym == "Com Carga Extra (Weighted)":
@@ -306,7 +352,6 @@ with aba_rm:
                 descanso_seg = st.number_input("Tempo de Descanso entre Sets (seg)", min_value=10, value=60, step=5)
             
             with f2:
-                # Fator de recuperação baseado no descanso (em relação a 90s ideal)
                 recuperacao = min(1.0, descanso_seg / 90.0)
                 queda_por_set = (1.0 - (recuperacao * 0.25))
                 
@@ -324,5 +369,3 @@ with aba_rm:
                         st.metric(f"Set {idx_s+1}", f"{r_proj} reps")
                 
                 st.info(f"**Total acumulado estimado:** {sum(reps_projetadas)} reps.")
-
-
