@@ -4,3 +4,4 @@ streamlit
 opencv-python-headless
 mediapipe
 groq
+numpy
