@@ -1,10 +1,18 @@
 import streamlit as st
 import math
 import time
+import json
+
+# Tenta importar a biblioteca da OpenAI (opcional)
+try:
+    from openai import OpenAI
+    HAS_OPENAI = True
+except ImportError:
+    HAS_OPENAI = False
 
 # 1. Configuração da página
 st.set_page_config(
-    page_title="CrossFit WOD Predictor PRO - Cap & Reps Analysis", 
+    page_title="CrossFit WOD Predictor PRO & AI Coach", 
     page_icon="🏋️", 
     layout="wide",
     initial_sidebar_state="auto"
@@ -104,9 +112,14 @@ EXERCISES = {
 # 6. Estrutura Principal
 st.title("🏋️ CrossFit WOD Predictor PRO & Arena Engine")
 
-aba_wod, aba_timer, aba_rm = st.tabs(["⏱️ Predição & Multi-WOD", "⏱️ Timer WOD Interativo", "📊 Preditor de RM (LPO & Ginástica)"])
+aba_wod, aba_timer, aba_rm, aba_ai = st.tabs([
+    "⏱️ Predição (Algoritmo Tradicional)", 
+    "⏱️ Timer WOD Interativo", 
+    "📊 Preditor de RM", 
+    "🤖 Coach IA & Leitor de WOD (Opcional)"
+])
 
-# ==================== ABA 1: SIMULAÇÃO MULTI-WOD & INTERVALOS ====================
+# ==================== ABA 1: SIMULAÇÃO MULTI-WOD ====================
 with aba_wod:
     with st.expander("👤 **PERFIL DO ATLETA & RPE ALVO**", expanded=False):
         c1, c2, c3 = st.columns(3)
@@ -442,4 +455,80 @@ with aba_rm:
                         st.metric(f"Set {idx_s+1}", f"{r_proj} reps")
                 
                 st.info(f"**Total acumulado estimado:** {sum(reps_projetadas)} reps.")
+
+# ==================== ABA 4: COACH IA & LEITOR DE WOD (OPCIONAL) ====================
+with aba_ai:
+    st.header("🤖 Inteligência Artificial Generativa (Coach Virtual & Parser)")
+    st.markdown("Esta funcionalidade é **opcional**. Permite ler WODs em texto corrido e receber conselhos táticos personalizados.")
+    
+    openai_key = st.text_input("🔑 OpenAI API Key (deixe em branco se não quiser usar a IA):", type="password")
+    
+    if openai_key and HAS_OPENAI:
+        client = OpenAI(api_key=openai_key)
+        
+        sub_ai_parse, sub_ai_advice = st.tabs(["📝 Extrair WOD por Texto", "🧠 Coach Tático Pro"])
+        
+        # SUB-ABA: EXTRAIR WOD
+        with sub_ai_parse:
+            st.subheader("Cole o texto bruto do WOD (Instagram, WODify, etc.):")
+            wod_raw_text = st.text_area("Texto do Treino", value="21-15-9\nThruster (43kg)\nPull-ups\nTime Cap: 10 min")
+            
+            if st.button("🪄 Extrair e Estruturar WOD com IA"):
+                prompt_parser = f"""
+                Você é um parser de treinos de CrossFit. Analise o texto e retorne APENAS um JSON válido.
+                Formato esperado do JSON:
+                {{
+                   "format": "For Time" ou "AMRAP",
+                   "rounds": 3,
+                   "cap_min": 10,
+                   "movs": [
+                      {{"name": "Thruster", "reps": 21, "load": 43.0}},
+                      {{"name": "Pull-up", "reps": 21, "load": 0.0}}
+                   ]
+                }}
+                Texto para analisar:
+                {wod_raw_text}
+                """
+                try:
+                    res = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": prompt_parser}],
+                        response_format={"type": "json_object"}
+                    )
+                    data_json = json.loads(res.choices[0].message.content)
+                    st.success("✅ WOD Estruturado com Sucesso!")
+                    st.json(data_json)
+                except Exception as e:
+                    st.error(f"Erro ao processar com a IA: {e}")
+
+        # SUB-ABA: ADVICE
+        with sub_ai_advice:
+            st.subheader("Solicitar Dica Estratégica da IA")
+            duvida_atleta = st.text_area("O que deseja saber sobre sua tática?", "Qual a melhor divisão de séries no Thruster para não travar nos Pull-ups?")
+            
+            if st.button("💬 Consultar Coach IA"):
+                prompt_coach = f"""
+                Você é um Coach de CrossFit nível Games e especialista em fisiologia do exercício.
+                Responda objetivamente à dúvida do atleta:
+                "{duvida_atleta}"
+                Apresente conselhos práticos divididos em:
+                1. Ritmo de Execução (Pacing)
+                2. Estratégia de Quebra (Sets & Pausas)
+                3. Alerta Fisiológico (Gestão de Lactato / Grip)
+                """
+                try:
+                    res = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": prompt_coach}]
+                    )
+                    st.markdown("### 📋 Resposta do Coach IA:")
+                    st.info(res.choices[0].message.content)
+                except Exception as e:
+                    st.error(f"Erro ao consultar o Coach IA: {e}")
+
+    elif openai_key and not HAS_OPENAI:
+        st.warning("⚠️ Instale a biblioteca da OpenAI usando `pip install openai` no seu ambiente Python.")
+    else:
+        st.info("💡 Insira sua API Key da OpenAI para ativar as funções adaptativas de IA nesta aba.")
+
 
