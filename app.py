@@ -12,7 +12,7 @@ try:
 except ImportError:
     HAS_MEDIAPIPE = False
 
-# Tenta importar Groq
+# Tenta importar Groq (IA Gratuita)
 try:
     from groq import Groq
     HAS_GROQ = True
@@ -21,15 +21,18 @@ except ImportError:
 
 # 1. Configuração da página
 st.set_page_config(
-    page_title="CrossFit WOD Predictor & Biomechanics Pro", 
+    page_title="CrossFit Predictor & Motion Lab Pro", 
     page_icon="🏋️", 
     layout="wide",
     initial_sidebar_state="auto"
 )
 
+# Fix para erro no navegador (Evita que o tradutor automático do Google altere o DOM e quebre o React/Streamlit)
+st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
+
 # 2. Autenticação
 def checar_senha():
-    SENHA_CORRETA = "wodpredictor"
+    SENHA_CORRETA = "SUA_SENHA_AQUI"  # <--- Altere para a sua senha
 
     def senha_digitada():
         if st.session_state.get("password_input") == SENHA_CORRETA:
@@ -66,20 +69,20 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 4. Funções de Biomecânica / Ângulos Articulares (Inteligência de Dados)
+# 4. Funções de Biomecânica / Cinesiologia (Inteligência de Dados)
 def calcular_angulo(a, b, c):
     """Calcula o ângulo entre três pontos articulares (em graus)."""
-    a = np.array(a) # Ex: Quadril
-    b = np.array(b) # Ex: Joelho (Vértice)
-    c = np.array(c) # Ex: Tornozelo
+    a = np.array(a)
+    b = np.array(b)
+    c = np.array(c)
     
     radians = np.arctan2(c[1]-b[1], c[0]-b[0]) - np.arctan2(a[1]-b[1], a[0]-b[0])
     angle = np.abs(radians * 180.0 / np.pi)
     if angle > 180.0:
-        angle = 360 - angle
+        angle = 360.0 - angle
     return round(angle, 1)
 
-# 5. Tabelas de Exercícios & RMs
+# 5. Funções de Cálculo de RM
 def calcular_rm_lpo(carga, reps):
     if reps == 1:
         rm1 = carga
@@ -97,6 +100,7 @@ def calcular_rm_gym_com_carga(peso_corpo, carga_extra, reps):
     reps_bw = int((total_1rm / peso_corpo - 1) * 30) if total_1rm > peso_corpo else reps
     return round(carga_extra_1rm, 1), round(total_1rm, 1), max(reps, reps_bw)
 
+# Dicionário de Exercícios
 EXERCISES = {
     "Thruster": {"type": "lpo", "rm_key": "thruster", "tpr": 2.2, "pattern": "push_legs", "grip_stress": 2},
     "Deadlift": {"type": "lpo", "rm_key": "deadlift", "tpr": 2.0, "pattern": "pull_posterior", "grip_stress": 3},
@@ -105,9 +109,12 @@ EXERCISES = {
     "Overhead Squat": {"type": "lpo", "rm_key": "ohs", "tpr": 2.4, "pattern": "push_legs", "grip_stress": 2},
     "Clean & Jerk": {"type": "lpo", "rm_key": "cj", "tpr": 3.2, "pattern": "full_body", "grip_stress": 3},
     "Snatch": {"type": "lpo", "rm_key": "snatch", "tpr": 2.8, "pattern": "full_body", "grip_stress": 3},
+    "Power Clean": {"type": "lpo", "rm_key": "pclean", "tpr": 2.1, "pattern": "pull_posterior", "grip_stress": 3},
+    "Push Press": {"type": "lpo", "rm_key": "ppress", "tpr": 1.9, "pattern": "push", "grip_stress": 1},
     "Pull-up": {"type": "gym", "max_key": "pullups", "tpr": 1.4, "pattern": "pull_upper", "grip_stress": 3},
     "Chest to Bar": {"type": "gym", "max_key": "c2b", "tpr": 1.6, "pattern": "pull_upper", "grip_stress": 3},
     "Bar Muscle-up": {"type": "gym", "max_key": "bmu", "tpr": 3.0, "pattern": "pull_push_upper", "grip_stress": 3},
+    "Ring Muscle-up": {"type": "gym", "max_key": "rmu", "tpr": 3.5, "pattern": "pull_push_upper", "grip_stress": 3},
     "Toes to Bar": {"type": "gym", "max_key": "ttb", "tpr": 1.6, "pattern": "pull_core", "grip_stress": 3},
     "HSPU": {"type": "gym", "max_key": "hspu", "tpr": 2.0, "pattern": "push", "grip_stress": 0},
     "Burpee": {"type": "cardio", "pace_key": "burpee", "tpr": 3.0, "pattern": "push_engine", "grip_stress": 0},
@@ -116,64 +123,120 @@ EXERCISES = {
     "Double Unders": {"type": "cardio", "pace_key": "du", "tpr": 0.6, "pattern": "engine_shoulders", "grip_stress": 2}
 }
 
-# 6. Estrutura Principal de Abas
+# 6. Estrutura Principal de Navegação
 st.title("🏋️ CrossFit Predictor & Motion Lab")
 
 aba_wod, aba_timer, aba_rm, aba_vision, aba_ai = st.tabs([
     "⏱️ Predição WOD", 
     "⏱️ Timer", 
     "📊 Calculadora RM", 
-    "📹 Analisador de Movimento (Câmera)",
+    "📹 Câmera & Biomecânica",
     "🤖 Coach IA & Groq"
 ])
 
 # ==================== ABA 1: PREDIÇÃO WOD ====================
 with aba_wod:
     st.header("⚙️ Simulação e Tática de WODs")
-    st.info("Acesse a aba de Câmera para validar biomecanicamente a execução técnica dos exercícios.")
+    
+    with st.expander("👤 **PERFIL DO ATLETA & RPE ALVO**", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown("#### 🏋️ 1RM (kg)")
+            rm_thruster = st.number_input("Thruster", value=80.0, step=2.5)
+            rm_deadlift = st.number_input("Deadlift", value=140.0, step=5.0)
+            rm_bsquat = st.number_input("Back Squat", value=120.0, step=2.5)
+            rm_fsquat = st.number_input("Front Squat", value=100.0, step=2.5)
+            rm_snatch = st.number_input("Snatch", value=70.0, step=2.5)
+        with c2:
+            st.markdown("#### 🤸 Ginástica (Max Unbroken)")
+            max_pullups = st.number_input("Pull-ups", value=25)
+            max_c2b = st.number_input("Chest to Bar", value=18)
+            max_bmu = st.number_input("Bar Muscle-ups", value=8)
+            max_ttb = st.number_input("Toes to Bar", value=20)
+            max_hspu = st.number_input("HSPU", value=15)
+        with c3:
+            st.markdown("#### 🏃 Ergômetros & RPE")
+            pace_burpee = st.number_input("Seg/Burpee", value=3.0, step=0.1)
+            pace_run = st.number_input("Pace Corrida (seg / 100m)", value=25.0, step=1.0)
+            pace_row = st.number_input("Pace Remo (seg / 100m)", value=22.0, step=1.0)
+            rpe_target = st.select_slider("🎯 RPE Alvo do Evento", options=[6, 7, 8, 9, 10], value=8)
 
-# ==================== ABA 2: TIMER ====================
+    st.success("✅ Defina seu treino abaixo e execute a predição algorítmica para estratégias de quebra.")
+
+# ==================== ABA 2: TIMER WOD ====================
 with aba_timer:
-    st.header("⏱️ Timer WOD")
-    tempo_min = st.number_input("Tempo Cap (minutos)", min_value=1, value=10)
-    timer_display = st.empty()
-    timer_display.markdown("<div class='big-timer'>00:00</div>", unsafe_allow_html=True)
-    if st.button("▶️ INICIAR"):
-        for seg in range(tempo_min * 60, -1, -1):
-            m, s = divmod(seg, 60)
-            timer_display.markdown(f"<div class='big-timer'>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
-            time.sleep(1)
+    st.header("⏱️ Timer WOD Profissional")
+    
+    t_col1, t_col2 = st.columns([1, 2])
+    with t_col1:
+        modo_timer = st.selectbox("Modo do Cronômetro", ["For Time (Progressivo)", "AMRAP / Countdown (Regressivo)"])
+        tempo_min = st.number_input("Tempo Cap / Minutos", min_value=1, value=10)
+        tempo_seg_total = tempo_min * 60
 
-# ==================== ABA 3: CALCULADORA DE RM ====================
+    with t_col2:
+        st.subheader("Controle do Timer")
+        btn_start = st.button("▶️ INICIAR TREINO", type="primary", use_container_width=True)
+        
+        timer_display = st.empty()
+        timer_display.markdown("<div class='big-timer'>00:00</div>", unsafe_allow_html=True)
+
+        if btn_start:
+            if modo_timer == "For Time (Progressivo)":
+                for seg in range(tempo_seg_total + 1):
+                    m, s = divmod(seg, 60)
+                    timer_display.markdown(f"<div class='big-timer'>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
+                    time.sleep(1)
+                st.balloons()
+                st.success("🎉 TIME CAP ATINGIDO!")
+            else:
+                for seg in range(tempo_seg_total, -1, -1):
+                    m, s = divmod(seg, 60)
+                    timer_display.markdown(f"<div class='big-timer'>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
+                    time.sleep(1)
+                st.balloons()
+                st.success("🚨 TEMPO ESGOTADO!")
+
+# ==================== ABA 3: PREDICTOR DE RM ====================
 with aba_rm:
-    st.header("📊 Predição de Cargas (RM)")
-    c_carga = st.number_input("Carga Levantada (kg)", value=80.0)
-    c_reps = st.number_input("Reps", min_value=1, value=5)
-    rm1, tab = calcular_rm_lpo(c_carga, c_reps)
-    st.metric("1RM Estimado", f"{rm1} kg")
+    st.header("📊 Calculadora & Preditor de Rep Max")
+    c_calc1, c_calc2 = st.columns(2)
+    with c_calc1:
+        carga_input = st.number_input("Carga levantada (kg)", min_value=1.0, value=80.0, step=2.5)
+        reps_input = st.number_input("Repetições realizadas", min_value=1, max_value=30, value=5)
+    
+    rm1_est, tabela_rms = calcular_rm_lpo(carga_input, reps_input)
 
-# ==================== ABA 4: ANALISADOR DE MOVIMENTO VIA CÂMERA ====================
+    with c_calc2:
+        st.metric("🎯 1RM Estimada", f"{rm1_est} kg")
+        st.caption(f"Baseado em {reps_input} reps com {carga_input} kg")
+
+    st.markdown("---")
+    st.subheader("📋 Tabela Preditiva de Cargas")
+    cols_rm = st.columns(5)
+    for idx, (rm_label, val) in enumerate(tabela_rms.items()):
+        with cols_rm[idx % 5]:
+            st.metric(label=rm_label, value=f"{val} kg")
+
+# ==================== ABA 4: ANALISADOR DE MOVIMENTO (CÂMERA) ====================
 with aba_vision:
     st.header("📹 Analisador Biomecânico em Tempo Real")
-    st.markdown("Utilize a câmera do celular ou webcam para rastrear a execução do movimento.")
+    st.markdown("Capture a imagem da sua execução técnica para medir ângulos articulares de profundidade de agachamento e postura.")
 
     modo_analise = st.radio(
-        "Selecione a Tecnologia de Análise:",
-        ["📐 Inteligência de Dados (MediaPipe / Cinesiologia)", "🤖 Inteligência Artificial (Visão/Prompt)"],
+        "Selecione o Método de Análise:",
+        ["📐 Inteligência de Dados (MediaPipe / Cinesiologia)", "🤖 Análise Assistida por IA"],
         horizontal=True
     )
 
-    img_file_buffer = st.camera_input("📷 Capturar foto do movimento (Agachamento, Overhead, Snatch, etc.)")
+    img_file_buffer = st.camera_input("📷 Capturar foto do movimento (Squat, Overhead, etc.)")
 
     if img_file_buffer is not None:
-        # Converte a imagem da câmera para formato OpenCV / Numpy
         bytes_data = img_file_buffer.getvalue()
         cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-        # MODO 1: INTELIGÊNCIA DE DADOS (MEDIAPIPE)
         if "Inteligência de Dados" in modo_analise:
             if not HAS_MEDIAPIPE:
-                st.error("⚠️ Biblioteca `mediapipe` não encontrada. Adicione `mediapipe` ao arquivo requirements.txt.")
+                st.error("⚠️ A biblioteca `mediapipe` não está instalada no servidor. Adicione `mediapipe` ao arquivo requirements.txt.")
             else:
                 mp_pose = mp.solutions.pose
                 mp_drawing = mp.solutions.drawing_utils
@@ -182,10 +245,13 @@ with aba_vision:
                     image_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
                     results = pose.process(image_rgb)
 
+                    # Usa um container estático st.empty para renderizar com segurança no React
+                    img_container = st.empty()
+
                     if results.pose_landmarks:
                         landmarks = results.pose_landmarks.landmark
 
-                        # Posição dos pontos articulares principais
+                        # Posição dos pontos articulares principais (Lado Esquerdo)
                         quadril = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x, landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
                         joelho = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
                         tornozelo = [landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x, landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y]
@@ -195,60 +261,97 @@ with aba_vision:
                         ang_joelho = calcular_angulo(quadril, joelho, tornozelo)
                         ang_quadril = calcular_angulo(ombro, quadril, joelho)
 
-                        # Desenha os pontos e esqueleto na imagem
+                        # Desenha as articulações na imagem
                         annotated_image = cv2_img.copy()
                         mp_drawing.draw_landmarks(
                             annotated_image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS
                         )
 
-                        st.image(cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB), caption="Rastreamento Articular", use_container_width=True)
+                        img_container.image(cv2.cvtColor(annotated_image, cv2.COLOR_BGR2RGB), caption="Rastreamento Articular Concluído", use_container_width=True)
 
-                        st.subheader("📊 Métricas Biomecânicas Medidas:")
-                        c_m1, c_m2 = st.columns(2)
-                        with c_m1:
+                        st.subheader("📊 Métrica Cinesiológica:")
+                        cm1, cm2 = st.columns(2)
+                        with cm1:
                             st.metric("📐 Ângulo do Joelho", f"{ang_joelho}°")
                             if ang_joelho < 90:
-                                st.success("✅ **Profundidade Válida:** Agachamento abaixo do paralelo (< 90°).")
+                                st.success("✅ **Profundidade Válida:** Agachamento abaixo da paralela (< 90°).")
                             else:
                                 st.warning("⚠️ **Parcial:** Não quebrou a paralela (ângulo > 90°).")
 
-                        with c_m2:
-                            st.metric("📐 Ângulo do Quadril / Tronco", f"{ang_quadril}°")
+                        with cm2:
+                            st.metric("📐 Ângulo do Tronco", f"{ang_quadril}°")
                             if ang_quadril < 75:
-                                st.warning("⚠️ **Inclinação Excessiva:** Tronco projetado muito à frente.")
+                                st.warning("⚠️ **Torção:** Tronco projetado excessivamente à frente.")
                             else:
-                                st.success("✅ **Postura Ereta:** Boa manutenção da coluna neutra.")
+                                st.success("✅ **Postura Neutra:** Alinhamento de coluna preservado.")
                     else:
-                        st.warning("Nenhum corpo identificado na imagem. Tente afastar a câmera.")
+                        img_container.image(cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB), caption="Imagem Capturada", use_container_width=True)
+                        st.warning("Corpo não detectado na imagem. Certifique-se de enquadrar o atleta por inteiro.")
 
-        # MODO 2: INTELIGÊNCIA ARTIFICIAL (IA GENERATIVA)
         else:
-            st.subheader("🤖 Diagnóstico por IA")
-            groq_key = st.text_input("🔑 Chave Groq API:", type="password")
-            
-            if st.button("🔍 Analisar Imagem com IA"):
-                if not groq_key:
-                    st.warning("Insira sua API Key da Groq.")
-                else:
-                    st.info("Envio de frame capturado para avaliação tática e ergonômica...")
-                    st.success("Imagens processadas com sucesso pela IA de visão.")
+            st.info("💡 Envie a imagem para o seu modelo de visão no painel do Groq para relatórios táticos de biomecânica.")
 
-# ==================== ABA 5: COACH IA & GROQ ====================
+# ==================== ABA 5: COACH IA & LEITOR DE WOD (GROQ - GRATUITO) ====================
 with aba_ai:
-    st.header("🤖 Coach IA (Groq)")
-    groq_key_ai = st.text_input("🔑 Groq API Key:", type="password", key="ai_key")
-    duvida = st.text_area("Dúvida de treino:", "Como melhorar a transição no Snatch?")
-    
-    if st.button("Perguntar ao Coach"):
-        if HAS_GROQ and groq_key_ai:
-            client = Groq(api_key=groq_key_ai)
-            res = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": duvida}]
-            )
-            st.write(res.choices[0].message.content)
-        else:
-            st.error("Verifique se instalou a biblioteca `groq` e informou a chave.")
+    st.header("🤖 Coach IA & Parser de WOD (100% Grátis via Groq)")
+    st.markdown("Utilize a API gratuita da Groq com modelos Llama 3 para tirar dúvidas táticas e estruturar WODs.")
+
+    groq_key = st.text_input("🔑 Groq API Key (Obtenha grátis em console.groq.com):", type="password")
+
+    if groq_key and HAS_GROQ:
+        client = Groq(api_key=groq_key)
+
+        sub_ai_parse, sub_ai_advice = st.tabs(["📝 Extrair WOD por Texto", "🧠 Consultar Coach IA"])
+
+        with sub_ai_parse:
+            wod_raw_text = st.text_area("Texto do WOD (Instagram, WODify, etc.):", value="21-15-9\nThruster (43kg)\nPull-ups\nTime Cap: 10 min")
+            if st.button("🪄 Processar WOD"):
+                prompt_parser = f"""
+                Analise o WOD e retorne APENAS um JSON válido no formato:
+                {{
+                   "format": "For Time",
+                   "rounds": 3,
+                   "cap_min": 10,
+                   "movs": [
+                      {{"name": "Thruster", "reps": 21, "load": 43.0}},
+                      {{"name": "Pull-up", "reps": 21, "load": 0.0}}
+                   ]
+                }}
+                Texto: {wod_raw_text}
+                """
+                try:
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role": "user", "content": prompt_parser}],
+                        response_format={"type": "json_object"}
+                    )
+                    st.success("✅ WOD Estruturado:")
+                    st.json(json.loads(res.choices[0].message.content))
+                except Exception as e:
+                    st.error(f"Erro ao processar: {e}")
+
+        with sub_ai_advice:
+            duvida = st.text_area("Dúvida técnica/estratégica:", "Qual a melhor estratégia para quebrar as séries de Thruster no 21-15-9 sem desgastar o grip?")
+            if st.button("💬 Perguntar ao Coach IA"):
+                try:
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": "Você é um especialista em CrossFit e Fisiologia do Exercício."},
+                            {"role": "user", "content": duvida}
+                        ]
+                    )
+                    st.markdown("### 📋 Resposta do Coach:")
+                    st.info(res.choices[0].message.content)
+                except Exception as e:
+                    st.error(f"Erro ao consultar a API: {e}")
+
+    elif groq_key and not HAS_GROQ:
+        st.warning("⚠️ A biblioteca `groq` não está instalada. Adicione `groq` ao seu requirements.txt no GitHub.")
+    else:
+        st.info("💡 Insira sua API Key da Groq (começa com `gsk_`) para liberar o assistente de IA.")
+
+
 
 
 
