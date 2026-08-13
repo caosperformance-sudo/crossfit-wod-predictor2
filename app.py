@@ -442,12 +442,4 @@ with aba_rm:
                         st.metric(f"Set {idx_s+1}", f"{r_proj} reps")
                 
                 st.info(f"**Total acumulado estimado:** {sum(reps_projetadas)} reps.")
-adas)} reps.")
 
-                cols_sets = st.columns(min(5, num_sets_gym))
-                for idx_s, r_proj in enumerate(reps_projetadas):
-                    c_idx = idx_s % 5
-                    with cols_sets[c_idx]:
-                        st.metric(f"Set {idx_s+1}", f"{r_proj} reps")
-                
-                st.info(f"**Total acumulado estimado:** {sum(reps_projetadas)} reps.")
