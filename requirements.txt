@@ -1,2 +1,6 @@
 streamlit
 groq
+streamlit
+opencv-python-headless
+mediapipe
+groq
