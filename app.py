@@ -1,7 +1,9 @@
 import streamlit as st
-import cv2
-import mediapipe as mp
 import numpy as np
+# Importações de visão computacional comentadas temporariamente:
+# import cv2
+# import mediapipe as mp
+
 
 # Configuração da Página
 st.set_page_config(
