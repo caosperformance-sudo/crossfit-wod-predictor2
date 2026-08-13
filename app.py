@@ -4,7 +4,7 @@ import time
 
 # 1. Configuração da página
 st.set_page_config(
-    page_title="CrossFit WOD Predictor PRO - Cap, Interval & Timer Engine", 
+    page_title="CrossFit WOD Predictor PRO - Cap & Reps Analysis", 
     page_icon="🏋️", 
     layout="wide",
     initial_sidebar_state="auto"
@@ -12,7 +12,7 @@ st.set_page_config(
 
 # 2. Lógica de Autenticação
 def checar_senha():
-    SENHA_CORRETA = "wodpredict"  # <--- Altere para a sua senha
+    SENHA_CORRETA = "SUA_SENHA_AQUI"  # <--- Altere para a sua senha
 
     def senha_digitada():
         if st.session_state["password_input"] == SENHA_CORRETA:
@@ -230,7 +230,7 @@ with aba_wod:
 
     if st.button("🚀 CALCULAR ESTRATÉGIA COMPLETA DE SESSÃO", type="primary", use_container_width=True):
         st.divider()
-        st.subheader("📊 ANÁLISE INTEGRADA, CAP E INTERVALOS")
+        st.subheader("📊 ANÁLISE INTEGRADA DE DESEMPENHO E TIME CAP")
 
         for w_i, w_data in enumerate(wods_data):
             st.markdown(f"### 🏋️ Resultados e Tática: WOD {w_i+1}")
@@ -269,33 +269,57 @@ with aba_wod:
             rt_round += tempo_transicao
             tempo_total_bruto = rt_round * w_data["rounds"]
             cap_segundos = w_data["cap_min"] * 60.0
+            total_reps_alvo = sum(m['reps'] for m in w_data['movs']) * w_data['rounds']
 
-            col_res1, col_res2 = st.columns(2)
-            with col_res1:
-                if w_data["format"] == "For Time":
-                    if tempo_total_bruto <= cap_segundos:
-                        m_tot, s_tot = int(tempo_total_bruto // 60), int(tempo_total_bruto % 60)
-                        st.metric(f"⏱️ Tempo Estimado WOD {w_i+1}", f"{m_tot}:{s_tot:02d} min", delta="Abaixo do Cap", delta_color="normal")
-                    else:
-                        # Estoura o Cap: Calcula Reps completadas antes do Cap
-                        pct_concluido = cap_segundos / tempo_total_bruto
-                        total_reps_wod = sum(m['reps'] for m in w_data['movs']) * w_data['rounds']
-                        reps_completadas = int(total_reps_wod * pct_concluido)
-                        st.metric(f"⏱️ CAP ATINGIDO! Score WOD {w_i+1}", f"CAP + {reps_completadas} reps", delta=f"Cap de {w_data['cap_min']} min", delta_color="inverse")
-                else:
-                    rnds = cap_segundos / rt_round
-                    full_r = int(rnds)
-                    extra_r = int((rnds - full_r) * sum(m['reps'] for m in w_data['movs']))
-                    st.metric(f"🎯 Score Estimado AMRAP WOD {w_i+1}", f"{full_r} rounds + {extra_r} reps")
+            col_res1, col_res2, col_res3 = st.columns(3)
             
-            with col_res2:
-                if grip_total_wod > 80:
-                    st.error("🚨 **ALERTA CRÍTICO DE GRIP FATIGUE:** Alto acúmulo de pegada! Risco de falha antes do Cap.")
-                elif grip_total_wod > 45:
-                    st.warning("⚠️ **Grip Moderado:** Desgaste acentuado nos flexores do antebraço.")
+            if w_data["format"] == "For Time":
+                if tempo_total_bruto <= cap_segundos:
+                    m_tot, s_tot = int(tempo_total_bruto // 60), int(tempo_total_bruto % 60)
+                    with col_res1:
+                        st.metric("⏱️ Tempo Estimado", f"{m_tot}:{s_tot:02d} min")
+                    with col_res2:
+                        st.metric("✅ Reps Completadas", f"{total_reps_alvo} / {total_reps_alvo}")
+                    with col_res3:
+                        st.metric("🎯 Reps Restantes (Faltou)", "0 reps", delta="WOD Concluído!", delta_color="normal")
                 else:
-                    st.success("✅ **Grip Preservado:** Baixa sobrecarga na pegada.")
+                    pct_concluido = cap_segundos / tempo_total_bruto
+                    reps_completadas = int(total_reps_alvo * pct_concluido)
+                    reps_faltantes = total_reps_alvo - reps_completadas
+                    
+                    with col_res1:
+                        st.metric("🚨 Status do Cap", f"CAP + {reps_completadas} reps")
+                    with col_res2:
+                        st.metric("✅ Total Completado", f"{reps_completadas} reps", delta=f"{int(pct_concluido*100)}% do treino")
+                    with col_res3:
+                        st.metric("❌ Faltou para Terminar", f"{reps_faltantes} reps", delta=f"-{reps_faltantes} reps", delta_color="inverse")
+            
+            else: # AMRAP
+                reps_por_round = sum(m['reps'] for m in w_data['movs'])
+                rnds_completos = int(cap_segundos // rt_round)
+                tempo_resto = cap_segundos - (rnds_completos * rt_round)
+                reps_extra = int((tempo_resto / rt_round) * reps_por_round)
+                
+                total_reps_amrap = (rnds_completos * reps_por_round) + reps_extra
+                reps_para_proximo_rnd = reps_por_round - reps_extra
 
+                with col_res1:
+                    st.metric("🎯 Score Estimado AMRAP", f"{rnds_completos} rnds + {reps_extra} reps")
+                with col_res2:
+                    st.metric("✅ Total de Reps Feitas", f"{total_reps_amrap} reps")
+                with col_res3:
+                    st.metric("🏁 Faltou para o Próximo Round", f"{reps_para_proximo_rnd} reps", delta=f"-{reps_para_proximo_rnd} reps", delta_color="inverse")
+
+            # Alertas de Fadiga de Pegada
+            st.markdown("---")
+            if grip_total_wod > 80:
+                st.error("🚨 **ALERTA CRÍTICO DE GRIP FATIGUE:** Alto acúmulo de pegada! Risco alto de travar e deixar mais reps pendentes.")
+            elif grip_total_wod > 45:
+                st.warning("⚠️ **Grip Moderado:** Desgaste acentuado nos flexores do antebraço.")
+            else:
+                st.success("✅ **Grip Preservado:** Baixa sobrecarga na pegada.")
+
+            # Detalhamento de Quebra
             with st.expander(f"💡 Ver Plano de Quebra e Pacing do WOD {w_i+1}", expanded=True):
                 for b in breakdowns:
                     est_str = gerar_estrategia_quebra(b["reps"], b["sets"])
@@ -307,7 +331,7 @@ with aba_wod:
 
             # Efeito do Intervalo pós-WOD
             if w_data["rest_next"] > 0:
-                recuperacao = min(1.0, w_data["rest_next"] / 20.0) # 20min = recuperacao completa
+                recuperacao = min(1.0, w_data["rest_next"] / 20.0)
                 desgaste_retido = 1.5 * (1.0 - (recuperacao * 0.70))
                 fadiga_sessao_cumulativa += desgaste_retido
                 st.caption(f"☕ **Intervalo de {w_data['rest_next']} min:** Recuperação muscular estimada em **{int(recuperacao*100)}%** antes do próximo WOD.")
@@ -418,6 +442,7 @@ with aba_rm:
                         st.metric(f"Set {idx_s+1}", f"{r_proj} reps")
                 
                 st.info(f"**Total acumulado estimado:** {sum(reps_projetadas)} reps.")
+adas)} reps.")
 
                 cols_sets = st.columns(min(5, num_sets_gym))
                 for idx_s, r_proj in enumerate(reps_projetadas):
