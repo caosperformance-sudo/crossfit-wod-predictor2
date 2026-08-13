@@ -12,7 +12,7 @@ st.set_page_config(
 
 # 2. Lógica de Autenticação
 def checar_senha():
-    SENHA_CORRETA = "SUA_SENHA_AQUI"  # <--- Altere para a sua senha
+    SENHA_CORRETA = "wodpredict"  # <--- Altere para a sua senha
 
     def senha_digitada():
         if st.session_state["password_input"] == SENHA_CORRETA:
